@@ -18,6 +18,7 @@ public class Vehicle
     public User? Driver { get; set; }
 
     public bool IsActive { get; set; } = false;
+    public bool IsSuspended { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<LocationPing> LocationPings { get; set; } = new List<LocationPing>();

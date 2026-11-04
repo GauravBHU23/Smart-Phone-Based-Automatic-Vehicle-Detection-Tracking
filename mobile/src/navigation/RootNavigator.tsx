@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
+import AdminScreen from "../screens/AdminScreen";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import DriverScreen from "../screens/DriverScreen";
@@ -39,6 +40,8 @@ export default function RootNavigator() {
             <Stack.Screen name="Driver" component={DriverScreen} />
             <Stack.Screen name="VehicleStatus" component={VehicleStatusScreen} />
           </>
+        ) : role === "Admin" ? (
+          <Stack.Screen name="Admin" component={AdminScreen} />
         ) : (
           <>
             <Stack.Screen name="PassengerTabs" component={PassengerTabs} />

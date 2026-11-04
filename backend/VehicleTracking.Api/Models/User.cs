@@ -15,6 +15,7 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Passenger;
     public string? PushToken { get; set; }
+    public bool IsSuspended { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();

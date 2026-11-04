@@ -23,6 +23,13 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
+        // Admin accounts are never created through public self-registration —
+        // only Passenger/Driver. Admins are provisioned separately (see
+        // AdminController's bootstrap endpoint), so this can't be bypassed by
+        // simply sending role: "Admin" in the request body.
+        if (request.Role == UserRole.Admin)
+            return BadRequest("Admin accounts cannot be created through registration.");
+
         if (await _db.Users.AnyAsync(u => u.Phone == request.Phone))
             return Conflict("Phone number already registered.");
 
@@ -47,6 +54,9 @@ public class AuthController : ControllerBase
         var user = await _db.Users.SingleOrDefaultAsync(u => u.Phone == request.Phone);
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized("Invalid phone or password.");
+
+        if (user.IsSuspended)
+            return Unauthorized("This account has been suspended. Contact support for assistance.");
 
         var token = _tokenService.CreateToken(user);
         return Ok(new AuthResponse(token, user.Id, user.Name, user.Role));

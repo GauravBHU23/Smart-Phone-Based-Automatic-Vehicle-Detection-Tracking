@@ -67,3 +67,36 @@ export interface VehicleLocationUpdate {
   headingDegrees: number | null;
   recordedAt: string;
 }
+
+export interface AdminDriver {
+  id: string;
+  name: string;
+  phone: string;
+  isSuspended: boolean;
+  createdAt: string;
+  vehicleCount: number;
+}
+
+export interface AdminVehicle {
+  id: string;
+  registrationNumber: string;
+  type: VehicleType;
+  driverName: string;
+  driverId: string;
+  isActive: boolean;
+  isSuspended: boolean;
+  fromLocation: string | null;
+  toLocation: string | null;
+  createdAt: string;
+}
+
+export interface AdminStats {
+  totalDrivers: number;
+  totalPassengers: number;
+  totalVehicles: number;
+  activeVehiclesNow: number;
+  suspendedDrivers: number;
+  suspendedVehicles: number;
+  tripsToday: number;
+  tripsAllTime: number;
+}

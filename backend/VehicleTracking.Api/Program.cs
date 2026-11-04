@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -5,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using VehicleTracking.Api.Data;
 using VehicleTracking.Api.Hubs;
+using VehicleTracking.Api.Models;
 using VehicleTracking.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -56,6 +58,32 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     context.Token = accessToken;
                 }
                 return Task.CompletedTask;
+            },
+            // A JWT stays valid until it expires, but a suspension must take effect
+            // immediately — not whenever the token happens to expire. Checking the
+            // live IsSuspended flag on every authenticated request (one indexed
+            // lookup) closes that gap.
+            OnTokenValidated = async context =>
+            {
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var userIdClaim = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? context.Principal?.FindFirst("sub")?.Value;
+
+                if (!Guid.TryParse(userIdClaim, out var userId))
+                {
+                    context.Fail("Invalid token.");
+                    return;
+                }
+
+                var isSuspended = await db.Users
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.IsSuspended)
+                    .FirstOrDefaultAsync();
+
+                if (isSuspended)
+                {
+                    context.Fail("This account has been suspended.");
+                }
             }
         };
     });
@@ -79,5 +107,32 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<TrackingHub>("/hubs/tracking");
+
+// Provision the first Admin account from config on startup, if one doesn't
+// already exist for this phone number. This is the only way an Admin account
+// is ever created — never through public registration — and running it again
+// is a no-op, so restarts are safe.
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var adminPhone = app.Configuration["AdminSeed:Phone"];
+    var adminPassword = app.Configuration["AdminSeed:Password"];
+
+    if (!string.IsNullOrWhiteSpace(adminPhone) && !string.IsNullOrWhiteSpace(adminPassword))
+    {
+        var exists = await db.Users.AnyAsync(u => u.Phone == adminPhone);
+        if (!exists)
+        {
+            db.Users.Add(new User
+            {
+                Name = "Admin",
+                Phone = adminPhone,
+                Role = UserRole.Admin,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword)
+            });
+            await db.SaveChangesAsync();
+        }
+    }
+}
 
 app.Run();

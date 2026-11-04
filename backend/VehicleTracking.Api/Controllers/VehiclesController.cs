@@ -242,6 +242,7 @@ public class VehiclesController : ControllerBase
     {
         var vehicle = await _db.Vehicles.SingleOrDefaultAsync(v => v.Id == vehicleId && v.DriverId == CurrentUserId);
         if (vehicle is null) return NotFound();
+        if (vehicle.IsSuspended) return Forbid();
 
         // Idempotent: a double-tap or client retry on a flaky connection must not
         // create a second open trip for the same vehicle. Reuse the existing one.

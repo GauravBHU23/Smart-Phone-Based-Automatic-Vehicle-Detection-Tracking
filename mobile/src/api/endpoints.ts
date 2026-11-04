@@ -1,5 +1,8 @@
 import { api } from "./client";
 import {
+  AdminDriver,
+  AdminStats,
+  AdminVehicle,
   AuthResponse,
   UserRole,
   Vehicle,
@@ -75,4 +78,20 @@ export const vehicleApi = {
     api.post<void>(`/api/vehicles/${vehicleId}/unwatch`, undefined, token),
   registerPushToken: (token: string, pushToken: string) =>
     api.put<void>("/api/vehicles/push-token", { pushToken }, token),
+};
+
+export const adminApi = {
+  getDrivers: (token: string, search?: string) =>
+    api.get<AdminDriver[]>(`/api/admin/drivers${search ? `?search=${encodeURIComponent(search)}` : ""}`, token),
+  getVehicles: (token: string, search?: string) =>
+    api.get<AdminVehicle[]>(`/api/admin/vehicles${search ? `?search=${encodeURIComponent(search)}` : ""}`, token),
+  getStats: (token: string) => api.get<AdminStats>("/api/admin/stats", token),
+  suspendDriver: (token: string, driverId: string) =>
+    api.post<void>(`/api/admin/drivers/${driverId}/suspend`, undefined, token),
+  unsuspendDriver: (token: string, driverId: string) =>
+    api.post<void>(`/api/admin/drivers/${driverId}/unsuspend`, undefined, token),
+  suspendVehicle: (token: string, vehicleId: string) =>
+    api.post<void>(`/api/admin/vehicles/${vehicleId}/suspend`, undefined, token),
+  unsuspendVehicle: (token: string, vehicleId: string) =>
+    api.post<void>(`/api/admin/vehicles/${vehicleId}/unsuspend`, undefined, token),
 };
