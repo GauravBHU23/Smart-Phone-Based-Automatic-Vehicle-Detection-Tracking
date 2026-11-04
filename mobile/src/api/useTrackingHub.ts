@@ -3,11 +3,17 @@ import { useEffect, useRef } from "react";
 import { HUB_URL } from "./config";
 import { VehicleLocationUpdate } from "../types";
 
-export function useTrackingHub(
-  onLocationUpdate: (update: VehicleLocationUpdate) => void,
-  onVehicleStopped?: (vehicleId: string) => void
-) {
+interface TrackingHubHandlers {
+  onLocationUpdate: (update: VehicleLocationUpdate) => void;
+  onVehicleStarted?: (vehicleId: string) => void;
+  onVehicleStopped?: (vehicleId: string) => void;
+  onVehicleReachedDestination?: (vehicleId: string) => void;
+}
+
+export function useTrackingHub(handlers: TrackingHubHandlers) {
   const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
 
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
@@ -15,10 +21,14 @@ export function useTrackingHub(
       .withAutomaticReconnect()
       .build();
 
-    connection.on("VehicleLocationUpdated", onLocationUpdate);
-    if (onVehicleStopped) {
-      connection.on("VehicleStopped", onVehicleStopped);
-    }
+    connection.on("VehicleLocationUpdated", (update: VehicleLocationUpdate) =>
+      handlersRef.current.onLocationUpdate(update)
+    );
+    connection.on("VehicleStarted", (vehicleId: string) => handlersRef.current.onVehicleStarted?.(vehicleId));
+    connection.on("VehicleStopped", (vehicleId: string) => handlersRef.current.onVehicleStopped?.(vehicleId));
+    connection.on("VehicleReachedDestination", (vehicleId: string) =>
+      handlersRef.current.onVehicleReachedDestination?.(vehicleId)
+    );
 
     connection
       .start()
@@ -30,7 +40,6 @@ export function useTrackingHub(
     return () => {
       connection.stop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return connectionRef;

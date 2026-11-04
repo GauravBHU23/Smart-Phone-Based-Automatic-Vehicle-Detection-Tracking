@@ -5,11 +5,20 @@ import MapView, { MapStyleElement, MapType, Marker, Region } from "react-native-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { vehicleApi } from "../api/endpoints";
 import { useTrackingHub } from "../api/useTrackingHub";
-import { useAuth } from "../context/AuthContext";
 import { VehicleType, VehicleWithLocation } from "../types";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE } from "./mapStyles";
 
 const VEHICLE_TYPES: (VehicleType | "All")[] = ["All", "Bus", "Auto", "Taxi", "Bike"];
+
+const VEHICLE_MARKER_ICON: Record<string, string> = {
+  Bus: "🚌",
+  Auto: "🛺",
+  Taxi: "🚕",
+  Bike: "🏍️",
+  Truck: "🚚",
+  Ambulance: "🚑",
+  Other: "🚗",
+};
 
 type MapTheme = "light" | "dark" | "standard" | "satellite" | "hybrid";
 
@@ -28,8 +37,7 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.1,
 };
 
-export default function PassengerScreen() {
-  const { signOut } = useAuth();
+export default function PassengerScreen({ navigation }: any) {
   const [vehicles, setVehicles] = useState<Record<string, VehicleWithLocation>>({});
   const [filter, setFilter] = useState<VehicleType | "All">("All");
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
@@ -63,8 +71,8 @@ export default function PassengerScreen() {
     setVehicles(map);
   }
 
-  useTrackingHub(
-    (update) => {
+  useTrackingHub({
+    onLocationUpdate: (update) => {
       setVehicles((prev) => {
         const existing = prev[update.vehicleId];
         if (!existing) {
@@ -85,18 +93,19 @@ export default function PassengerScreen() {
         };
       });
     },
-    (vehicleId) => {
+    onVehicleStarted: () => loadActiveVehicles(),
+    onVehicleStopped: (vehicleId) => {
       setVehicles((prev) => {
         const { [vehicleId]: _removed, ...rest } = prev;
         return rest;
       });
-    }
-  );
+    },
+  });
 
   const markers = Object.values(vehicles).filter((v) => v.latitude != null && v.longitude != null);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.topBar}>
         <ScrollView
           horizontal
@@ -117,9 +126,6 @@ export default function PassengerScreen() {
         <TouchableOpacity style={styles.menuButton} onPress={() => setMapMenuOpen(true)}>
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-          <Text style={styles.logout}>Log out</Text>
-        </TouchableOpacity>
       </View>
 
       <MapView
@@ -133,15 +139,25 @@ export default function PassengerScreen() {
           <Marker
             key={v.id}
             coordinate={{ latitude: v.latitude!, longitude: v.longitude! }}
-            title={`${v.type} ${v.registrationNumber}`}
-            description={v.routeName ?? undefined}
+            title={`${VEHICLE_MARKER_ICON[v.type] ?? ""} ${v.registrationNumber}`}
+            description={v.fromLocation && v.toLocation ? `${v.fromLocation} → ${v.toLocation}` : undefined}
+            onCalloutPress={() => navigation.navigate("VehicleStatus", { vehicleId: v.id })}
           />
         ))}
       </MapView>
 
-      <View style={styles.listFooter}>
-        <Text style={styles.footerText}>{markers.length} active vehicle(s) nearby</Text>
-      </View>
+      <TouchableOpacity
+        style={styles.listFooter}
+        onPress={() => {
+          if (markers.length > 0) navigation.navigate("VehicleStatus", { vehicleId: markers[0].id });
+        }}
+        disabled={markers.length === 0}
+      >
+        <Text style={styles.footerText}>
+          {markers.length} active vehicle{markers.length === 1 ? "" : "s"} nearby
+          {markers.length > 0 ? " — tap a marker for live status" : ""}
+        </Text>
+      </TouchableOpacity>
 
       <Modal
         visible={mapMenuOpen}
@@ -197,23 +213,14 @@ const styles = StyleSheet.create({
   chipText: { color: "#2563eb" },
   chipTextActive: { color: "#fff" },
   menuButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     marginRight: 4,
   },
   menuIcon: { fontSize: 20, color: "#333" },
-  logoutButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: "#dc2626",
-    borderRadius: 16,
-  },
-  logout: { color: "#dc2626", fontWeight: "600" },
   map: { flex: 1 },
-  listFooter: { padding: 12, borderTopWidth: 1, borderTopColor: "#eee" },
-  footerText: { textAlign: "center", color: "#666" },
+  listFooter: { padding: 14, borderTopWidth: 1, borderTopColor: "#eee", backgroundColor: "#fff" },
+  footerText: { textAlign: "center", color: "#334155", fontWeight: "500" },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.3)",

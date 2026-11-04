@@ -15,4 +15,5 @@ public class Trip
     public double? EndLongitude { get; set; }
 
     public double DistanceKm { get; set; }
+    public DateTime? DestinationReachedAt { get; set; }
 }

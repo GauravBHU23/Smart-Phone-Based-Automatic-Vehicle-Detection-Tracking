@@ -22,6 +22,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddHttpClient<PushNotificationService>();
 
 builder.Services.AddCors(options =>
 {

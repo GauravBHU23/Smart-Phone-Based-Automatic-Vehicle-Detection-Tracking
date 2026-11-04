@@ -58,11 +58,43 @@ namespace VehicleTracking.Api.Migrations
                     b.ToTable("LocationPings");
                 });
 
+            modelBuilder.Entity("VehicleTracking.Api.Models.RouteStop", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VehicleId", "Order");
+
+                    b.ToTable("RouteStops");
+                });
+
             modelBuilder.Entity("VehicleTracking.Api.Models.Trip", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DestinationReachedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<double>("DistanceKm")
                         .HasColumnType("double precision");
@@ -116,6 +148,9 @@ namespace VehicleTracking.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("PushToken")
+                        .HasColumnType("text");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");
@@ -137,8 +172,17 @@ namespace VehicleTracking.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<double?>("DestinationLatitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DestinationLongitude")
+                        .HasColumnType("double precision");
+
                     b.Property<Guid>("DriverId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("FromLocation")
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -148,6 +192,9 @@ namespace VehicleTracking.Api.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("RouteName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ToLocation")
                         .HasColumnType("text");
 
                     b.Property<string>("Type")
@@ -164,10 +211,46 @@ namespace VehicleTracking.Api.Migrations
                     b.ToTable("Vehicles");
                 });
 
+            modelBuilder.Entity("VehicleTracking.Api.Models.WatchedVehicle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VehicleId");
+
+                    b.HasIndex("UserId", "VehicleId")
+                        .IsUnique();
+
+                    b.ToTable("WatchedVehicles");
+                });
+
             modelBuilder.Entity("VehicleTracking.Api.Models.LocationPing", b =>
                 {
                     b.HasOne("VehicleTracking.Api.Models.Vehicle", "Vehicle")
                         .WithMany("LocationPings")
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("VehicleTracking.Api.Models.RouteStop", b =>
+                {
+                    b.HasOne("VehicleTracking.Api.Models.Vehicle", "Vehicle")
+                        .WithMany("Stops")
                         .HasForeignKey("VehicleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -197,14 +280,37 @@ namespace VehicleTracking.Api.Migrations
                     b.Navigation("Driver");
                 });
 
+            modelBuilder.Entity("VehicleTracking.Api.Models.WatchedVehicle", b =>
+                {
+                    b.HasOne("VehicleTracking.Api.Models.User", "User")
+                        .WithMany("WatchedVehicles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VehicleTracking.Api.Models.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Vehicle");
+                });
+
             modelBuilder.Entity("VehicleTracking.Api.Models.User", b =>
                 {
                     b.Navigation("Vehicles");
+
+                    b.Navigation("WatchedVehicles");
                 });
 
             modelBuilder.Entity("VehicleTracking.Api.Models.Vehicle", b =>
                 {
                     b.Navigation("LocationPings");
+
+                    b.Navigation("Stops");
 
                     b.Navigation("Trips");
                 });

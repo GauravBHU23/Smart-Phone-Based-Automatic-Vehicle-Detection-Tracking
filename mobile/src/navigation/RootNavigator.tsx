@@ -6,7 +6,9 @@ import { useAuth } from "../context/AuthContext";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import DriverScreen from "../screens/DriverScreen";
-import PassengerScreen from "../screens/PassengerScreen";
+import SearchScreen from "../screens/SearchScreen";
+import VehicleStatusScreen from "../screens/VehicleStatusScreen";
+import PassengerTabs from "./PassengerTabs";
 
 const Stack = createNativeStackNavigator();
 
@@ -28,11 +30,16 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="PublicSearch" component={SearchScreen} />
+            <Stack.Screen name="VehicleStatus" component={VehicleStatusScreen} />
           </>
         ) : role === "Driver" ? (
           <Stack.Screen name="Driver" component={DriverScreen} />
         ) : (
-          <Stack.Screen name="Passenger" component={PassengerScreen} />
+          <>
+            <Stack.Screen name="PassengerTabs" component={PassengerTabs} />
+            <Stack.Screen name="VehicleStatus" component={VehicleStatusScreen} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

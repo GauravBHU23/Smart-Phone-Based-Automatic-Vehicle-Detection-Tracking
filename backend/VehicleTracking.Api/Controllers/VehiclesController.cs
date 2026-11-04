@@ -7,6 +7,7 @@ using VehicleTracking.Api.Data;
 using VehicleTracking.Api.DTOs;
 using VehicleTracking.Api.Hubs;
 using VehicleTracking.Api.Models;
+using VehicleTracking.Api.Services;
 
 namespace VehicleTracking.Api.Controllers;
 
@@ -15,33 +16,74 @@ namespace VehicleTracking.Api.Controllers;
 [Authorize]
 public class VehiclesController : ControllerBase
 {
+    private const double DestinationArrivalRadiusMeters = 150;
+
     private readonly AppDbContext _db;
     private readonly IHubContext<TrackingHub> _hub;
+    private readonly PushNotificationService _push;
 
-    public VehiclesController(AppDbContext db, IHubContext<TrackingHub> hub)
+    public VehiclesController(AppDbContext db, IHubContext<TrackingHub> hub, PushNotificationService push)
     {
         _db = db;
         _hub = hub;
+        _push = push;
     }
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
+    private static VehicleResponse ToVehicleResponse(Vehicle v) => new(
+        v.Id,
+        v.RegistrationNumber,
+        v.Type,
+        v.FromLocation,
+        v.ToLocation,
+        v.DestinationLatitude,
+        v.DestinationLongitude,
+        v.Stops.OrderBy(s => s.Order).Select(s => new StopDto(s.Name, s.Latitude, s.Longitude)).ToList(),
+        v.IsActive
+    );
 
     [HttpPost]
     [Authorize(Roles = "Driver")]
     public async Task<ActionResult<VehicleResponse>> RegisterVehicle(RegisterVehicleRequest request)
     {
+        var normalized = request.RegistrationNumber.Trim().ToUpperInvariant();
+        var exists = await _db.Vehicles.AnyAsync(v => v.RegistrationNumber.ToUpper() == normalized);
+        if (exists) return Conflict("A vehicle with this registration number is already registered.");
+
         var vehicle = new Vehicle
         {
             RegistrationNumber = request.RegistrationNumber,
             Type = request.Type,
-            RouteName = request.RouteName,
+            FromLocation = request.FromLocation,
+            ToLocation = request.ToLocation,
+            DestinationLatitude = request.DestinationLatitude,
+            DestinationLongitude = request.DestinationLongitude,
             DriverId = CurrentUserId
         };
 
-        _db.Vehicles.Add(vehicle);
-        await _db.SaveChangesAsync();
+        if (request.Stops is { Count: > 0 })
+        {
+            for (var i = 0; i < request.Stops.Count; i++)
+            {
+                var s = request.Stops[i];
+                vehicle.Stops.Add(new RouteStop { Name = s.Name, Order = i, Latitude = s.Latitude, Longitude = s.Longitude });
+            }
+        }
 
-        return Ok(new VehicleResponse(vehicle.Id, vehicle.RegistrationNumber, vehicle.Type, vehicle.RouteName, vehicle.IsActive));
+        _db.Vehicles.Add(vehicle);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Race condition: another request registered the same number between our check and insert.
+            return Conflict("A vehicle with this registration number is already registered.");
+        }
+
+        return Ok(ToVehicleResponse(vehicle));
     }
 
     [HttpGet("mine")]
@@ -49,11 +91,131 @@ public class VehiclesController : ControllerBase
     public async Task<ActionResult<List<VehicleResponse>>> GetMyVehicles()
     {
         var vehicles = await _db.Vehicles
+            .Include(v => v.Stops)
             .Where(v => v.DriverId == CurrentUserId)
-            .Select(v => new VehicleResponse(v.Id, v.RegistrationNumber, v.Type, v.RouteName, v.IsActive))
             .ToListAsync();
 
-        return Ok(vehicles);
+        return Ok(vehicles.Select(ToVehicleResponse).ToList());
+    }
+
+    [HttpGet("search")]
+    [AllowAnonymous]
+    public async Task<ActionResult<VehicleStatusResponse>> SearchByRegistrationNumber([FromQuery] string regNumber)
+    {
+        if (string.IsNullOrWhiteSpace(regNumber)) return BadRequest("regNumber is required.");
+
+        var normalized = regNumber.Trim().ToUpperInvariant();
+
+        var vehicle = await _db.Vehicles
+            .Include(v => v.Driver)
+            .Include(v => v.Stops)
+            .SingleOrDefaultAsync(v => v.RegistrationNumber.ToUpper() == normalized);
+
+        if (vehicle is null) return NotFound("No vehicle found with that registration number.");
+
+        return Ok(await BuildStatusResponse(vehicle));
+    }
+
+    [HttpGet("{vehicleId:guid}/status")]
+    [AllowAnonymous]
+    public async Task<ActionResult<VehicleStatusResponse>> GetStatus(Guid vehicleId)
+    {
+        var vehicle = await _db.Vehicles
+            .Include(v => v.Driver)
+            .Include(v => v.Stops)
+            .SingleOrDefaultAsync(v => v.Id == vehicleId);
+
+        if (vehicle is null) return NotFound();
+
+        return Ok(await BuildStatusResponse(vehicle));
+    }
+
+    private async Task<VehicleStatusResponse> BuildStatusResponse(Vehicle vehicle)
+    {
+        var lastPing = await _db.LocationPings
+            .Where(p => p.VehicleId == vehicle.Id)
+            .OrderByDescending(p => p.RecordedAt)
+            .FirstOrDefaultAsync();
+
+        Trip? trip = null;
+        double distanceCoveredKm = 0;
+        if (vehicle.IsActive)
+        {
+            trip = await _db.Trips
+                .Where(t => t.VehicleId == vehicle.Id && t.EndedAt == null)
+                .OrderByDescending(t => t.StartedAt)
+                .FirstOrDefaultAsync();
+
+            if (trip is not null)
+            {
+                var pings = await _db.LocationPings
+                    .Where(p => p.VehicleId == vehicle.Id && p.RecordedAt >= trip.StartedAt)
+                    .OrderBy(p => p.RecordedAt)
+                    .ToListAsync();
+
+                for (var i = 1; i < pings.Count; i++)
+                {
+                    distanceCoveredKm += HaversineKm(pings[i - 1].Latitude, pings[i - 1].Longitude, pings[i].Latitude, pings[i].Longitude);
+                }
+            }
+        }
+
+        return new VehicleStatusResponse(
+            vehicle.Id,
+            vehicle.RegistrationNumber,
+            vehicle.Type,
+            vehicle.Driver?.Name ?? "Unknown",
+            vehicle.FromLocation,
+            vehicle.ToLocation,
+            vehicle.DestinationLatitude,
+            vehicle.DestinationLongitude,
+            vehicle.Stops.OrderBy(s => s.Order).Select(s => new StopDto(s.Name, s.Latitude, s.Longitude)).ToList(),
+            vehicle.IsActive,
+            lastPing?.Latitude,
+            lastPing?.Longitude,
+            lastPing?.SpeedKmh,
+            lastPing?.RecordedAt,
+            trip?.StartedAt,
+            trip is null ? null : Math.Round(distanceCoveredKm, 2)
+        );
+    }
+
+    [HttpPost("{vehicleId:guid}/watch")]
+    public async Task<IActionResult> WatchVehicle(Guid vehicleId)
+    {
+        var vehicleExists = await _db.Vehicles.AnyAsync(v => v.Id == vehicleId);
+        if (!vehicleExists) return NotFound();
+
+        var already = await _db.WatchedVehicles.AnyAsync(w => w.UserId == CurrentUserId && w.VehicleId == vehicleId);
+        if (!already)
+        {
+            _db.WatchedVehicles.Add(new WatchedVehicle { UserId = CurrentUserId, VehicleId = vehicleId });
+            await _db.SaveChangesAsync();
+        }
+
+        return NoContent();
+    }
+
+    [HttpPost("{vehicleId:guid}/unwatch")]
+    public async Task<IActionResult> UnwatchVehicle(Guid vehicleId)
+    {
+        var watch = await _db.WatchedVehicles.SingleOrDefaultAsync(w => w.UserId == CurrentUserId && w.VehicleId == vehicleId);
+        if (watch is not null)
+        {
+            _db.WatchedVehicles.Remove(watch);
+            await _db.SaveChangesAsync();
+        }
+
+        return NoContent();
+    }
+
+    [HttpPut("push-token")]
+    public async Task<IActionResult> RegisterPushToken(RegisterPushTokenRequest request)
+    {
+        var user = await _db.Users.SingleAsync(u => u.Id == CurrentUserId);
+        user.PushToken = request.PushToken;
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 
     [HttpPost("{vehicleId:guid}/start")]
@@ -66,6 +228,9 @@ public class VehiclesController : ControllerBase
         vehicle.IsActive = true;
         _db.Trips.Add(new Trip { VehicleId = vehicleId });
         await _db.SaveChangesAsync();
+
+        await _hub.Clients.Group("passengers").SendAsync("VehicleStarted", vehicleId);
+        await NotifyWatchers(vehicleId, "Tracking started", $"{vehicle.RegistrationNumber} is now sharing its live location.");
 
         return NoContent();
     }
@@ -89,6 +254,7 @@ public class VehiclesController : ControllerBase
 
         await _hub.Clients.Group("passengers").SendAsync("VehicleStopped", vehicleId);
         await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId)).SendAsync("VehicleStopped", vehicleId);
+        await NotifyWatchers(vehicleId, "Tracking stopped", $"{vehicle.RegistrationNumber} has stopped sharing its location.");
 
         return NoContent();
     }
@@ -126,8 +292,60 @@ public class VehiclesController : ControllerBase
         await _hub.Clients.Group("passengers").SendAsync("VehicleLocationUpdated", update);
         await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId)).SendAsync("VehicleLocationUpdated", update);
 
+        await CheckDestinationArrival(vehicle, ping);
+
         return NoContent();
     }
+
+    private async Task CheckDestinationArrival(Vehicle vehicle, LocationPing ping)
+    {
+        if (vehicle.DestinationLatitude is null || vehicle.DestinationLongitude is null) return;
+
+        var distanceMeters = HaversineKm(ping.Latitude, ping.Longitude, vehicle.DestinationLatitude.Value, vehicle.DestinationLongitude.Value) * 1000;
+        if (distanceMeters > DestinationArrivalRadiusMeters) return;
+
+        var openTrip = await _db.Trips
+            .Where(t => t.VehicleId == vehicle.Id && t.EndedAt == null)
+            .OrderByDescending(t => t.StartedAt)
+            .FirstOrDefaultAsync();
+
+        if (openTrip is null || openTrip.DestinationReachedAt is not null) return; // already notified for this trip
+
+        openTrip.DestinationReachedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        await _hub.Clients.Group("passengers").SendAsync("VehicleReachedDestination", vehicle.Id);
+        await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicle.Id)).SendAsync("VehicleReachedDestination", vehicle.Id);
+        await NotifyWatchers(
+            vehicle.Id,
+            "Destination reached",
+            $"{vehicle.RegistrationNumber} has arrived at {vehicle.ToLocation ?? "its destination"}."
+        );
+    }
+
+    private async Task NotifyWatchers(Guid vehicleId, string title, string body)
+    {
+        var tokens = await _db.WatchedVehicles
+            .Where(w => w.VehicleId == vehicleId && w.User!.PushToken != null)
+            .Select(w => w.User!.PushToken!)
+            .ToListAsync();
+
+        await _push.SendAsync(tokens, title, body, new { vehicleId });
+    }
+
+    private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double earthRadiusKm = 6371;
+        var dLat = DegreesToRadians(lat2 - lat1);
+        var dLon = DegreesToRadians(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(DegreesToRadians(lat1)) * Math.Cos(DegreesToRadians(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return earthRadiusKm * c;
+    }
+
+    private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180;
 
     [HttpGet("active")]
     [AllowAnonymous]
@@ -142,7 +360,8 @@ public class VehiclesController : ControllerBase
                 v.Id,
                 v.RegistrationNumber,
                 v.Type,
-                v.RouteName,
+                v.FromLocation,
+                v.ToLocation,
                 LastPing = v.LocationPings.OrderByDescending(p => p.RecordedAt).FirstOrDefault()
             })
             .ToListAsync();
@@ -151,7 +370,8 @@ public class VehiclesController : ControllerBase
             v.Id,
             v.RegistrationNumber,
             v.Type,
-            v.RouteName,
+            v.FromLocation,
+            v.ToLocation,
             v.LastPing?.Latitude,
             v.LastPing?.Longitude,
             v.LastPing?.SpeedKmh,

@@ -59,6 +59,12 @@ export default function LoginScreen({ navigation }: any) {
       <TouchableOpacity onPress={() => navigation.navigate("Register")}>
         <Text style={styles.link}>Don't have an account? Register</Text>
       </TouchableOpacity>
+
+      <View style={styles.divider} />
+
+      <TouchableOpacity style={styles.searchLink} onPress={() => navigation.navigate("PublicSearch")}>
+        <Text style={styles.searchLinkText}>🔍 Just want to track a vehicle? Search without an account</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -83,4 +89,11 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   link: { color: "#2563eb", textAlign: "center", marginTop: 20 },
+  divider: { height: 1, backgroundColor: "#eee", marginTop: 28, marginBottom: 20 },
+  searchLink: {
+    backgroundColor: "#eff6ff",
+    borderRadius: 12,
+    padding: 14,
+  },
+  searchLinkText: { color: "#1e3a8a", textAlign: "center", fontWeight: "600", fontSize: 14 },
 });

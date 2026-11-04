@@ -27,6 +27,10 @@ export default function DriverScreen() {
   const [loading, setLoading] = useState(true);
   const [regNumber, setRegNumber] = useState("");
   const [vehicleType, setVehicleType] = useState<VehicleType>("Bus");
+  const [fromLocation, setFromLocation] = useState("");
+  const [toLocation, setToLocation] = useState("");
+  const [stopsText, setStopsText] = useState("");
+  const [showRouteFields, setShowRouteFields] = useState(false);
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
   const [tracking, setTracking] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -55,8 +59,50 @@ export default function DriverScreen() {
     if (!token || !regNumber) return;
     setAdding(true);
     try {
-      await vehicleApi.registerVehicle(token, regNumber, vehicleType);
+      let destinationLatitude: number | undefined;
+      let destinationLongitude: number | undefined;
+
+      if (toLocation.trim()) {
+        try {
+          const results = await Location.geocodeAsync(toLocation.trim());
+          if (results.length > 0) {
+            destinationLatitude = results[0].latitude;
+            destinationLongitude = results[0].longitude;
+          }
+        } catch (geocodeErr) {
+          console.warn("Could not geocode destination:", geocodeErr);
+        }
+      }
+
+      const stopNames = stopsText
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const stops = await Promise.all(
+        stopNames.map(async (name) => {
+          try {
+            const results = await Location.geocodeAsync(name);
+            return { name, latitude: results[0]?.latitude, longitude: results[0]?.longitude };
+          } catch {
+            return { name };
+          }
+        })
+      );
+
+      await vehicleApi.registerVehicle(token, regNumber, vehicleType, {
+        fromLocation: fromLocation.trim() || undefined,
+        toLocation: toLocation.trim() || undefined,
+        destinationLatitude,
+        destinationLongitude,
+        stops: stops.length > 0 ? stops : undefined,
+      });
+
       setRegNumber("");
+      setFromLocation("");
+      setToLocation("");
+      setStopsText("");
+      setShowRouteFields(false);
       await loadVehicles();
     } catch (err) {
       const message = err instanceof ApiError ? err.message : String(err);
@@ -187,6 +233,47 @@ export default function DriverScreen() {
               </TouchableOpacity>
             ))}
           </View>
+
+          <TouchableOpacity
+            style={styles.routeToggle}
+            onPress={() => setShowRouteFields((v) => !v)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.routeToggleText}>
+              {showRouteFields ? "− Hide route details" : "+ Add route (recommended)"}
+            </Text>
+          </TouchableOpacity>
+
+          {showRouteFields && (
+            <View style={styles.routeFields}>
+              <Text style={styles.routeHint}>
+                Adding a route lets passengers and family see where this vehicle is
+                headed and when it has arrived — just like a train's status.
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="From (e.g. Civil Lines)"
+                placeholderTextColor="#9ca3af"
+                value={fromLocation}
+                onChangeText={setFromLocation}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="To (e.g. Naini)"
+                placeholderTextColor="#9ca3af"
+                value={toLocation}
+                onChangeText={setToLocation}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Stops, separated by commas (optional)"
+                placeholderTextColor="#9ca3af"
+                value={stopsText}
+                onChangeText={setStopsText}
+              />
+            </View>
+          )}
+
           <TouchableOpacity
             style={[styles.addButton, (!regNumber || adding) && styles.addButtonDisabled]}
             onPress={handleAddVehicle}
@@ -217,7 +304,10 @@ export default function DriverScreen() {
               </View>
               <View style={styles.vehicleInfo}>
                 <Text style={styles.vehicleReg}>{item.registrationNumber}</Text>
-                <Text style={styles.vehicleType}>{item.type}{item.routeName ? ` · ${item.routeName}` : ""}</Text>
+                <Text style={styles.vehicleType}>
+                  {item.type}
+                  {item.fromLocation && item.toLocation ? ` · ${item.fromLocation} → ${item.toLocation}` : ""}
+                </Text>
               </View>
               {isLive ? (
                 <TouchableOpacity style={styles.stopButton} onPress={stopTracking} activeOpacity={0.85}>
@@ -337,6 +427,10 @@ const styles = StyleSheet.create({
   typeChipActive: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
   typeText: { color: "#2563eb", fontSize: 13, fontWeight: "500" },
   typeTextActive: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  routeToggle: { marginBottom: 10 },
+  routeToggleText: { color: "#2563eb", fontSize: 13, fontWeight: "600" },
+  routeFields: { marginBottom: 4 },
+  routeHint: { fontSize: 12, color: "#64748b", marginBottom: 10, lineHeight: 17 },
   addButton: {
     backgroundColor: "#16a34a",
     borderRadius: 10,

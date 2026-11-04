@@ -11,6 +11,8 @@ public class AppDbContext : DbContext
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<LocationPing> LocationPings => Set<LocationPing>();
     public DbSet<Trip> Trips => Set<Trip>();
+    public DbSet<RouteStop> RouteStops => Set<RouteStop>();
+    public DbSet<WatchedVehicle> WatchedVehicles => Set<WatchedVehicle>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +46,28 @@ public class AppDbContext : DbContext
             e.HasOne(t => t.Vehicle)
                 .WithMany(v => v.Trips)
                 .HasForeignKey(t => t.VehicleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RouteStop>(e =>
+        {
+            e.HasIndex(s => new { s.VehicleId, s.Order });
+            e.HasOne(s => s.Vehicle)
+                .WithMany(v => v.Stops)
+                .HasForeignKey(s => s.VehicleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WatchedVehicle>(e =>
+        {
+            e.HasIndex(w => new { w.UserId, w.VehicleId }).IsUnique();
+            e.HasOne(w => w.User)
+                .WithMany(u => u.WatchedVehicles)
+                .HasForeignKey(w => w.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(w => w.Vehicle)
+                .WithMany()
+                .HasForeignKey(w => w.VehicleId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

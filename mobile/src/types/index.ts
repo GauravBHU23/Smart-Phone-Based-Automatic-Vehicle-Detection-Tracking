@@ -9,11 +9,21 @@ export interface AuthResponse {
   role: UserRole;
 }
 
+export interface RouteStop {
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export interface Vehicle {
   id: string;
   registrationNumber: string;
   type: VehicleType;
-  routeName: string | null;
+  fromLocation: string | null;
+  toLocation: string | null;
+  destinationLatitude: number | null;
+  destinationLongitude: number | null;
+  stops: RouteStop[];
   isActive: boolean;
 }
 
@@ -21,11 +31,31 @@ export interface VehicleWithLocation {
   id: string;
   registrationNumber: string;
   type: VehicleType;
-  routeName: string | null;
+  fromLocation: string | null;
+  toLocation: string | null;
   latitude: number | null;
   longitude: number | null;
   speedKmh: number | null;
   lastUpdatedAt: string | null;
+}
+
+export interface VehicleStatus {
+  id: string;
+  registrationNumber: string;
+  type: VehicleType;
+  driverName: string;
+  fromLocation: string | null;
+  toLocation: string | null;
+  destinationLatitude: number | null;
+  destinationLongitude: number | null;
+  stops: RouteStop[];
+  isActive: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  speedKmh: number | null;
+  lastUpdatedAt: string | null;
+  tripStartedAt: string | null;
+  distanceCoveredKm: number | null;
 }
 
 export interface VehicleLocationUpdate {

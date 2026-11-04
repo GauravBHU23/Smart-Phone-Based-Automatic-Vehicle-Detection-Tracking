@@ -14,7 +14,9 @@ public class User
     public string Phone { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Passenger;
+    public string? PushToken { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+    public ICollection<WatchedVehicle> WatchedVehicles { get; set; } = new List<WatchedVehicle>();
 }
