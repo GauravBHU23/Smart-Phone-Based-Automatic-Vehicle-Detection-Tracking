@@ -67,7 +67,7 @@ public class VehiclesController : ControllerBase
         _db.Trips.Add(new Trip { VehicleId = vehicleId });
         await _db.SaveChangesAsync();
 
-        return Ok();
+        return NoContent();
     }
 
     [HttpPost("{vehicleId:guid}/stop")]
@@ -86,7 +86,7 @@ public class VehiclesController : ControllerBase
         if (openTrip is not null) openTrip.EndedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
-        return Ok();
+        return NoContent();
     }
 
     [HttpPost("{vehicleId:guid}/location")]
@@ -122,7 +122,7 @@ public class VehiclesController : ControllerBase
         await _hub.Clients.Group("passengers").SendAsync("VehicleLocationUpdated", update);
         await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId)).SendAsync("VehicleLocationUpdated", update);
 
-        return Ok();
+        return NoContent();
     }
 
     [HttpGet("active")]
