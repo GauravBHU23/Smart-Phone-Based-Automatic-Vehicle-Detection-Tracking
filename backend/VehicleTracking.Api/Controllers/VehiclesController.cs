@@ -86,6 +86,10 @@ public class VehiclesController : ControllerBase
         if (openTrip is not null) openTrip.EndedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        await _hub.Clients.Group("passengers").SendAsync("VehicleStopped", vehicleId);
+        await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId)).SendAsync("VehicleStopped", vehicleId);
+
         return NoContent();
     }
 

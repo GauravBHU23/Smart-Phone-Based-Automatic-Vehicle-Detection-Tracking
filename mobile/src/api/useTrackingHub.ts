@@ -3,7 +3,10 @@ import { useEffect, useRef } from "react";
 import { HUB_URL } from "./config";
 import { VehicleLocationUpdate } from "../types";
 
-export function useTrackingHub(onLocationUpdate: (update: VehicleLocationUpdate) => void) {
+export function useTrackingHub(
+  onLocationUpdate: (update: VehicleLocationUpdate) => void,
+  onVehicleStopped?: (vehicleId: string) => void
+) {
   const connectionRef = useRef<signalR.HubConnection | null>(null);
 
   useEffect(() => {
@@ -13,6 +16,9 @@ export function useTrackingHub(onLocationUpdate: (update: VehicleLocationUpdate)
       .build();
 
     connection.on("VehicleLocationUpdated", onLocationUpdate);
+    if (onVehicleStopped) {
+      connection.on("VehicleStopped", onVehicleStopped);
+    }
 
     connection
       .start()

@@ -63,22 +63,35 @@ export default function PassengerScreen() {
     setVehicles(map);
   }
 
-  useTrackingHub((update) => {
-    setVehicles((prev) => {
-      const existing = prev[update.vehicleId];
-      if (!existing) return prev;
-      return {
-        ...prev,
-        [update.vehicleId]: {
-          ...existing,
-          latitude: update.latitude,
-          longitude: update.longitude,
-          speedKmh: update.speedKmh,
-          lastUpdatedAt: update.recordedAt,
-        },
-      };
-    });
-  });
+  useTrackingHub(
+    (update) => {
+      setVehicles((prev) => {
+        const existing = prev[update.vehicleId];
+        if (!existing) {
+          // A vehicle we don't know about yet just went live — refresh the list
+          // from the server so it appears with its full details (type, reg no.).
+          loadActiveVehicles();
+          return prev;
+        }
+        return {
+          ...prev,
+          [update.vehicleId]: {
+            ...existing,
+            latitude: update.latitude,
+            longitude: update.longitude,
+            speedKmh: update.speedKmh,
+            lastUpdatedAt: update.recordedAt,
+          },
+        };
+      });
+    },
+    (vehicleId) => {
+      setVehicles((prev) => {
+        const { [vehicleId]: _removed, ...rest } = prev;
+        return rest;
+      });
+    }
+  );
 
   const markers = Object.values(vehicles).filter((v) => v.latitude != null && v.longitude != null);
 
