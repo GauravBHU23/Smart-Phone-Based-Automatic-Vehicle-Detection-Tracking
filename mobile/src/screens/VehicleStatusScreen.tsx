@@ -151,15 +151,13 @@ export default function VehicleStatusScreen({ route, navigation }: any) {
     status.stops.length > 0
       ? status.stops
       : ([
-          status.fromLocation ? { name: status.fromLocation, latitude: null, longitude: null } : null,
-          status.toLocation ? { name: status.toLocation, latitude: null, longitude: null } : null,
+          status.fromLocation ? { name: status.fromLocation, latitude: null, longitude: null, reached: false } : null,
+          status.toLocation ? { name: status.toLocation, latitude: null, longitude: null, reached: false } : null,
         ].filter(Boolean) as RouteStop[]);
 
-  // Rough "current stop index" from distance covered isn't precise without per-stop
-  // coordinates, so we show progress as: first stop always "departed", last stop
-  // "reached" only once the vehicle is inactive after being active (trip complete),
-  // and everything else as "upcoming" while active.
-  const currentStopIndex = status.isActive ? Math.min(Math.floor(stops.length / 2), stops.length - 1) : -1;
+  // "Reached" comes straight from the backend, which checks the vehicle's actual
+  // GPS trail against each stop's coordinates — not a guess based on stop count.
+  const lastReachedIndex = stops.reduce((acc, s, i) => (s.reached ? i : acc), -1);
 
   const routeCoordinates = stops
     .filter((s) => s.latitude != null && s.longitude != null)
@@ -280,8 +278,8 @@ export default function VehicleStatusScreen({ route, navigation }: any) {
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Stops</Text>
             {stops.map((stop, i) => {
-              const isPast = status.isActive ? i < currentStopIndex : i < stops.length - 1;
-              const isCurrent = status.isActive && i === currentStopIndex;
+              const isPast = stop.reached && i < lastReachedIndex;
+              const isCurrent = stop.reached && i === lastReachedIndex;
               return (
                 <View key={`${stop.name}-${i}`} style={styles.stopRow}>
                   <View style={styles.stopTimelineCol}>

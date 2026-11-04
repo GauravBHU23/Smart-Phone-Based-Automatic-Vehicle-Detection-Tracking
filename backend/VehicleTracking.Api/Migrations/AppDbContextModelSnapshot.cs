@@ -122,7 +122,10 @@ namespace VehicleTracking.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("VehicleId");
+                    b.HasIndex("VehicleId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Trips_VehicleId_OpenTrip")
+                        .HasFilter("\"EndedAt\" IS NULL");
 
                     b.ToTable("Trips");
                 });

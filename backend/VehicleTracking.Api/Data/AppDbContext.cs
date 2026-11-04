@@ -47,6 +47,13 @@ public class AppDbContext : DbContext
                 .WithMany(v => v.Trips)
                 .HasForeignKey(t => t.VehicleId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Hard database guarantee that a vehicle can never have more than one
+            // open trip, even under concurrent Start requests (double-tap, retries).
+            e.HasIndex(t => t.VehicleId)
+                .IsUnique()
+                .HasFilter("\"EndedAt\" IS NULL")
+                .HasDatabaseName("IX_Trips_VehicleId_OpenTrip");
         });
 
         modelBuilder.Entity<RouteStop>(e =>

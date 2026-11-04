@@ -39,7 +39,7 @@ public class VehiclesController : ControllerBase
         v.ToLocation,
         v.DestinationLatitude,
         v.DestinationLongitude,
-        v.Stops.OrderBy(s => s.Order).Select(s => new StopDto(s.Name, s.Latitude, s.Longitude)).ToList(),
+        v.Stops.OrderBy(s => s.Order).Select(s => new StopDto(s.Name, s.Latitude, s.Longitude, false)).ToList(),
         v.IsActive
     );
 
@@ -130,6 +130,8 @@ public class VehiclesController : ControllerBase
         return Ok(await BuildStatusResponse(vehicle));
     }
 
+    private const double StopReachedRadiusMeters = 300;
+
     private async Task<VehicleStatusResponse> BuildStatusResponse(Vehicle vehicle)
     {
         var lastPing = await _db.LocationPings
@@ -137,28 +139,44 @@ public class VehiclesController : ControllerBase
             .OrderByDescending(p => p.RecordedAt)
             .FirstOrDefaultAsync();
 
-        Trip? trip = null;
+        // Use the most recent trip (current if active, otherwise the last completed
+        // one) so a finished trip still shows which stops were actually passed,
+        // instead of resetting to "not reached" the moment the driver stops.
+        var trip = await _db.Trips
+            .Where(t => t.VehicleId == vehicle.Id)
+            .OrderByDescending(t => t.StartedAt)
+            .FirstOrDefaultAsync();
+
         double distanceCoveredKm = 0;
-        if (vehicle.IsActive)
+        var orderedStops = vehicle.Stops.OrderBy(s => s.Order).ToList();
+        var reachedStopIds = new HashSet<Guid>();
+
+        if (trip is not null)
         {
-            trip = await _db.Trips
-                .Where(t => t.VehicleId == vehicle.Id && t.EndedAt == null)
-                .OrderByDescending(t => t.StartedAt)
-                .FirstOrDefaultAsync();
+            var pings = await _db.LocationPings
+                .Where(p => p.VehicleId == vehicle.Id && p.RecordedAt >= trip.StartedAt)
+                .OrderBy(p => p.RecordedAt)
+                .ToListAsync();
 
-            if (trip is not null)
+            for (var i = 1; i < pings.Count; i++)
             {
-                var pings = await _db.LocationPings
-                    .Where(p => p.VehicleId == vehicle.Id && p.RecordedAt >= trip.StartedAt)
-                    .OrderBy(p => p.RecordedAt)
-                    .ToListAsync();
+                distanceCoveredKm += HaversineKm(pings[i - 1].Latitude, pings[i - 1].Longitude, pings[i].Latitude, pings[i].Longitude);
+            }
 
-                for (var i = 1; i < pings.Count; i++)
-                {
-                    distanceCoveredKm += HaversineKm(pings[i - 1].Latitude, pings[i - 1].Longitude, pings[i].Latitude, pings[i].Longitude);
-                }
+            // A stop is "reached" once any GPS ping on this trip came within
+            // StopReachedRadiusMeters of it — real position data, not a guess.
+            foreach (var stop in orderedStops)
+            {
+                if (stop.Latitude is null || stop.Longitude is null) continue;
+                var wasNear = pings.Any(p =>
+                    HaversineKm(p.Latitude, p.Longitude, stop.Latitude.Value, stop.Longitude.Value) * 1000 <= StopReachedRadiusMeters);
+                if (wasNear) reachedStopIds.Add(stop.Id);
             }
         }
+
+        var stopDtos = orderedStops
+            .Select(s => new StopDto(s.Name, s.Latitude, s.Longitude, reachedStopIds.Contains(s.Id)))
+            .ToList();
 
         return new VehicleStatusResponse(
             vehicle.Id,
@@ -169,14 +187,14 @@ public class VehiclesController : ControllerBase
             vehicle.ToLocation,
             vehicle.DestinationLatitude,
             vehicle.DestinationLongitude,
-            vehicle.Stops.OrderBy(s => s.Order).Select(s => new StopDto(s.Name, s.Latitude, s.Longitude)).ToList(),
+            stopDtos,
             vehicle.IsActive,
             lastPing?.Latitude,
             lastPing?.Longitude,
             lastPing?.SpeedKmh,
             lastPing?.RecordedAt,
-            trip?.StartedAt,
-            trip is null ? null : Math.Round(distanceCoveredKm, 2)
+            vehicle.IsActive ? trip?.StartedAt : null,
+            vehicle.IsActive && trip is not null ? Math.Round(distanceCoveredKm, 2) : null
         );
     }
 
@@ -225,12 +243,38 @@ public class VehiclesController : ControllerBase
         var vehicle = await _db.Vehicles.SingleOrDefaultAsync(v => v.Id == vehicleId && v.DriverId == CurrentUserId);
         if (vehicle is null) return NotFound();
 
-        vehicle.IsActive = true;
-        _db.Trips.Add(new Trip { VehicleId = vehicleId });
-        await _db.SaveChangesAsync();
+        // Idempotent: a double-tap or client retry on a flaky connection must not
+        // create a second open trip for the same vehicle. Reuse the existing one.
+        var openTrip = await _db.Trips
+            .Where(t => t.VehicleId == vehicleId && t.EndedAt == null)
+            .OrderByDescending(t => t.StartedAt)
+            .FirstOrDefaultAsync();
 
-        await _hub.Clients.Group("passengers").SendAsync("VehicleStarted", vehicleId);
-        await NotifyWatchers(vehicleId, "Tracking started", $"{vehicle.RegistrationNumber} is now sharing its live location.");
+        var alreadyActive = vehicle.IsActive && openTrip is not null;
+
+        vehicle.IsActive = true;
+        if (openTrip is null)
+        {
+            _db.Trips.Add(new Trip { VehicleId = vehicleId });
+        }
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Lost a race with a concurrent Start request for the same vehicle;
+            // the other request's trip is now the open one. Nothing more to do.
+            alreadyActive = true;
+        }
+
+        if (!alreadyActive)
+        {
+            await _hub.Clients.Group("passengers").SendAsync("VehicleStarted", vehicleId);
+            await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId)).SendAsync("VehicleStarted", vehicleId);
+            await NotifyWatchers(vehicleId, "Tracking started", $"{vehicle.RegistrationNumber} is now sharing its live location.");
+        }
 
         return NoContent();
     }
@@ -311,8 +355,16 @@ public class VehiclesController : ControllerBase
 
         if (openTrip is null || openTrip.DestinationReachedAt is not null) return; // already notified for this trip
 
-        openTrip.DestinationReachedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        // Two GPS pings arriving close together (client retry on a flaky network)
+        // could both reach this point before either SaveChanges commits. The
+        // conditional UPDATE below is atomic at the database level — only the
+        // request that actually flips DestinationReachedAt from NULL goes on to
+        // fire the notification, so "arrived" can never be sent twice for one trip.
+        var rowsUpdated = await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE \"Trips\" SET \"DestinationReachedAt\" = {DateTime.UtcNow} WHERE \"Id\" = {openTrip.Id} AND \"DestinationReachedAt\" IS NULL"
+        );
+
+        if (rowsUpdated == 0) return; // lost the race to another request for the same ping/trip
 
         await _hub.Clients.Group("passengers").SendAsync("VehicleReachedDestination", vehicle.Id);
         await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicle.Id)).SendAsync("VehicleReachedDestination", vehicle.Id);

@@ -13,6 +13,7 @@ export interface RouteStop {
   name: string;
   latitude: number | null;
   longitude: number | null;
+  reached: boolean;
 }
 
 export interface Vehicle {
