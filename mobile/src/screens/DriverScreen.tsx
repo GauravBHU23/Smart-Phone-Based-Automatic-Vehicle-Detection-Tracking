@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ApiError } from "../api/client";
 import { vehicleApi } from "../api/endpoints";
 import { useAuth } from "../context/AuthContext";
 import { Vehicle, VehicleType } from "../types";
@@ -61,58 +63,71 @@ export default function DriverScreen() {
   async function startTracking(vehicleId: string) {
     if (!token) return;
 
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission required", "Location permission is needed to share your vehicle's position.");
-      return;
-    }
-
-    await vehicleApi.startTracking(token, vehicleId);
-    setActiveVehicleId(vehicleId);
-    setTracking(true);
-
-    watchSubscription.current = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.High,
-        timeInterval: LOCATION_INTERVAL_MS,
-        distanceInterval: 10,
-      },
-      (loc) => {
-        vehicleApi
-          .postLocation(
-            token,
-            vehicleId,
-            loc.coords.latitude,
-            loc.coords.longitude,
-            loc.coords.speed ? loc.coords.speed * 3.6 : null,
-            loc.coords.heading,
-            loc.coords.accuracy
-          )
-          .catch((err) => console.warn("Failed to post location:", err));
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission required", "Location permission is needed to share your vehicle's position.");
+        return;
       }
-    );
+
+      await vehicleApi.startTracking(token, vehicleId);
+      setActiveVehicleId(vehicleId);
+      setTracking(true);
+
+      watchSubscription.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: LOCATION_INTERVAL_MS,
+          distanceInterval: 10,
+        },
+        (loc) => {
+          vehicleApi
+            .postLocation(
+              token,
+              vehicleId,
+              loc.coords.latitude,
+              loc.coords.longitude,
+              loc.coords.speed ? loc.coords.speed * 3.6 : null,
+              loc.coords.heading,
+              loc.coords.accuracy
+            )
+            .catch((err) => console.warn("Failed to post location:", err));
+        }
+      );
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : String(err);
+      Alert.alert("Could not start tracking", message);
+      setTracking(false);
+      setActiveVehicleId(null);
+    }
   }
 
   async function stopTracking() {
     if (!token || !activeVehicleId) return;
     watchSubscription.current?.remove();
     watchSubscription.current = null;
-    await vehicleApi.stopTracking(token, activeVehicleId);
-    setTracking(false);
-    setActiveVehicleId(null);
-    loadVehicles();
+    try {
+      await vehicleApi.stopTracking(token, activeVehicleId);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : String(err);
+      Alert.alert("Could not stop tracking", message);
+    } finally {
+      setTracking(false);
+      setActiveVehicleId(null);
+      loadVehicles();
+    }
   }
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <SafeAreaView style={styles.center}>
         <ActivityIndicator size="large" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Hi, {name}</Text>
         <TouchableOpacity onPress={signOut}>
@@ -173,7 +188,7 @@ export default function DriverScreen() {
         )}
         ListEmptyComponent={<Text style={styles.empty}>No vehicles yet. Add one above.</Text>}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
