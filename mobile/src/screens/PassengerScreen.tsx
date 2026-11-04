@@ -1,6 +1,6 @@
 import * as Location from "expo-location";
 import React, { useEffect, useState } from "react";
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { MapStyleElement, MapType, Marker, Region } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { vehicleApi } from "../api/endpoints";
@@ -43,6 +43,7 @@ export default function PassengerScreen({ navigation }: any) {
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [mapTheme, setMapTheme] = useState<MapTheme>("light");
   const [mapMenuOpen, setMapMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const activeTheme = MAP_THEMES.find((m) => m.value === mapTheme)!;
 
   useEffect(() => {
@@ -65,10 +66,17 @@ export default function PassengerScreen({ navigation }: any) {
   }, [filter]);
 
   async function loadActiveVehicles() {
-    const list = await vehicleApi.activeVehicles(filter === "All" ? undefined : filter);
-    const map: Record<string, VehicleWithLocation> = {};
-    list.forEach((v) => (map[v.id] = v));
-    setVehicles(map);
+    setLoading(true);
+    try {
+      const list = await vehicleApi.activeVehicles(filter === "All" ? undefined : filter);
+      const map: Record<string, VehicleWithLocation> = {};
+      list.forEach((v) => (map[v.id] = v));
+      setVehicles(map);
+    } catch (err) {
+      console.warn("Failed to load active vehicles:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useTrackingHub({
@@ -151,12 +159,19 @@ export default function PassengerScreen({ navigation }: any) {
         onPress={() => {
           if (markers.length > 0) navigation.navigate("VehicleStatus", { vehicleId: markers[0].id });
         }}
-        disabled={markers.length === 0}
+        disabled={markers.length === 0 || loading}
       >
-        <Text style={styles.footerText}>
-          {markers.length} active vehicle{markers.length === 1 ? "" : "s"} nearby
-          {markers.length > 0 ? " — tap a marker for live status" : ""}
-        </Text>
+        {loading ? (
+          <View style={styles.footerLoadingRow}>
+            <ActivityIndicator size="small" color="#2563eb" />
+            <Text style={styles.footerText}>Finding nearby vehicles…</Text>
+          </View>
+        ) : (
+          <Text style={styles.footerText}>
+            {markers.length} active vehicle{markers.length === 1 ? "" : "s"} nearby
+            {markers.length > 0 ? " — tap a marker for live status" : ""}
+          </Text>
+        )}
       </TouchableOpacity>
 
       <Modal
@@ -220,6 +235,7 @@ const styles = StyleSheet.create({
   menuIcon: { fontSize: 20, color: "#333" },
   map: { flex: 1 },
   listFooter: { padding: 14, borderTopWidth: 1, borderTopColor: "#eee", backgroundColor: "#fff" },
+  footerLoadingRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8 },
   footerText: { textAlign: "center", color: "#334155", fontWeight: "500" },
   modalOverlay: {
     flex: 1,
