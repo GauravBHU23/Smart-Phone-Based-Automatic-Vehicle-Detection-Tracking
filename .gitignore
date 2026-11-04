@@ -1,0 +1,26 @@
+# Backend (.NET)
+backend/**/bin/
+backend/**/obj/
+
+# Mobile (Node / Expo / React Native)
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/npm-debug.*
+mobile/*.jks
+mobile/*.p8
+mobile/*.p12
+mobile/*.key
+mobile/*.mobileprovision
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Env / secrets
+*.env
+appsettings.*.local.json
+mobile/.claude/
