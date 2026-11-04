@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.gauravkum1275.vehicletracking",
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to show your vehicle's position on the map and to display nearby vehicles to passengers.",
@@ -17,6 +18,7 @@
       }
     },
     "android": {
+      "package": "com.gauravkum1275.vehicletracking",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

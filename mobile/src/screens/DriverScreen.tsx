@@ -98,12 +98,20 @@ export default function DriverScreen() {
         stops: stops.length > 0 ? stops : undefined,
       });
 
+      const hadDestinationName = toLocation.trim().length > 0;
       setRegNumber("");
       setFromLocation("");
       setToLocation("");
       setStopsText("");
       setShowRouteFields(false);
       await loadVehicles();
+
+      if (hadDestinationName && destinationLatitude === undefined) {
+        Alert.alert(
+          "Vehicle added",
+          "We couldn't pinpoint your destination on the map, so arrival alerts won't trigger automatically for this trip. You can still track it live."
+        );
+      }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : String(err);
       Alert.alert("Could not add vehicle", message);

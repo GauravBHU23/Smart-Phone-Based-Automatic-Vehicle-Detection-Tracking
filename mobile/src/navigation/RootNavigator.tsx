@@ -9,6 +9,7 @@ import DriverScreen from "../screens/DriverScreen";
 import SearchScreen from "../screens/SearchScreen";
 import VehicleStatusScreen from "../screens/VehicleStatusScreen";
 import PassengerTabs from "./PassengerTabs";
+import { navigationRef } from "./navigationRef";
 
 const Stack = createNativeStackNavigator();
 
@@ -24,7 +25,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!token ? (
           <>
@@ -34,7 +35,10 @@ export default function RootNavigator() {
             <Stack.Screen name="VehicleStatus" component={VehicleStatusScreen} />
           </>
         ) : role === "Driver" ? (
-          <Stack.Screen name="Driver" component={DriverScreen} />
+          <>
+            <Stack.Screen name="Driver" component={DriverScreen} />
+            <Stack.Screen name="VehicleStatus" component={VehicleStatusScreen} />
+          </>
         ) : (
           <>
             <Stack.Screen name="PassengerTabs" component={PassengerTabs} />
