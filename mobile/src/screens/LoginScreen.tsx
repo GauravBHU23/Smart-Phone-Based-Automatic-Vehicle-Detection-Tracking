@@ -107,8 +107,8 @@ export default function LoginScreen({ navigation }: any) {
           >
             <Text style={styles.searchLinkIcon}>🔍</Text>
             <View style={styles.searchLinkTextWrap}>
-              <Text style={styles.searchLinkTitle}>Just want to track a vehicle?</Text>
-              <Text style={styles.searchLinkSubtitle}>Search by number — no account needed</Text>
+              <Text style={styles.searchLinkTitle}>Track a vehicle</Text>
+              <Text style={styles.searchLinkSubtitle}>No account needed</Text>
             </View>
             <Text style={styles.searchLinkArrow}>→</Text>
           </TouchableOpacity>
