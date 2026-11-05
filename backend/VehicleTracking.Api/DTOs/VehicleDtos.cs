@@ -62,3 +62,18 @@ public record VehicleStatusResponse(
 );
 
 public record RegisterPushTokenRequest(string PushToken);
+
+public record RouteSearchResultResponse(
+    Guid Id,
+    string RegistrationNumber,
+    VehicleType Type,
+    string DriverName,
+    string? FromLocation,
+    string? ToLocation,
+    List<StopDto> Stops,
+    bool IsActive,
+    double? Latitude,
+    double? Longitude,
+    double? SpeedKmh,
+    DateTime? LastUpdatedAt
+);

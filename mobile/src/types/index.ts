@@ -40,6 +40,21 @@ export interface VehicleWithLocation {
   lastUpdatedAt: string | null;
 }
 
+export interface RouteSearchResult {
+  id: string;
+  registrationNumber: string;
+  type: VehicleType;
+  driverName: string;
+  fromLocation: string | null;
+  toLocation: string | null;
+  stops: RouteStop[];
+  isActive: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  speedKmh: number | null;
+  lastUpdatedAt: string | null;
+}
+
 export interface VehicleStatus {
   id: string;
   registrationNumber: string;

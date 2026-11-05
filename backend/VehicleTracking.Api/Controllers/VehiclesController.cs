@@ -433,4 +433,89 @@ public class VehiclesController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpGet("search-by-route")]
+    [AllowAnonymous]
+    public async Task<ActionResult<List<RouteSearchResultResponse>>> SearchByRoute(
+        [FromQuery] string from,
+        [FromQuery] string to)
+    {
+        if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
+            return BadRequest("Both from and to are required.");
+
+        var fromTerm = from.Trim();
+        var toTerm = to.Trim();
+
+        var vehicles = await _db.Vehicles
+            .Include(v => v.Driver)
+            .Include(v => v.Stops)
+            .ToListAsync();
+
+        var matches = new List<Vehicle>();
+        foreach (var vehicle in vehicles)
+        {
+            // Build the vehicle's full ordered route: From (position 0), each
+            // stop in sequence, then To (last position) — then find where the
+            // searched "from" and "to" terms appear in that sequence. Matching
+            // both From and To by name alone isn't enough: it would also match
+            // someone searching the reverse direction of this vehicle's route,
+            // so we additionally require the "from" match to come at an
+            // earlier position than the "to" match.
+            var routePoints = new List<string>();
+            if (!string.IsNullOrWhiteSpace(vehicle.FromLocation)) routePoints.Add(vehicle.FromLocation);
+            routePoints.AddRange(vehicle.Stops.OrderBy(s => s.Order).Select(s => s.Name));
+            if (!string.IsNullOrWhiteSpace(vehicle.ToLocation)) routePoints.Add(vehicle.ToLocation);
+
+            if (routePoints.Count == 0) continue;
+
+            var fromIndex = FindFirstMatchIndex(routePoints, fromTerm);
+            var toIndex = FindFirstMatchIndex(routePoints, toTerm);
+
+            if (fromIndex is not null && toIndex is not null && fromIndex < toIndex)
+            {
+                matches.Add(vehicle);
+            }
+        }
+
+        var vehicleIds = matches.Select(v => v.Id).ToList();
+        var lastPings = await _db.LocationPings
+            .Where(p => vehicleIds.Contains(p.VehicleId))
+            .GroupBy(p => p.VehicleId)
+            .Select(g => g.OrderByDescending(p => p.RecordedAt).First())
+            .ToDictionaryAsync(p => p.VehicleId);
+
+        var result = matches.Select(v =>
+        {
+            lastPings.TryGetValue(v.Id, out var lastPing);
+            return new RouteSearchResultResponse(
+                v.Id,
+                v.RegistrationNumber,
+                v.Type,
+                v.Driver?.Name ?? "Unknown",
+                v.FromLocation,
+                v.ToLocation,
+                v.Stops.OrderBy(s => s.Order).Select(s => new StopDto(s.Name, s.Latitude, s.Longitude, false)).ToList(),
+                v.IsActive,
+                lastPing?.Latitude,
+                lastPing?.Longitude,
+                lastPing?.SpeedKmh,
+                lastPing?.RecordedAt
+            );
+        })
+        // Live vehicles first, so a passenger sees what's actually running before registered-but-idle routes.
+        .OrderByDescending(v => v.IsActive)
+        .ToList();
+
+        return Ok(result);
+    }
+
+    private static int? FindFirstMatchIndex(List<string> routePoints, string term)
+    {
+        for (var i = 0; i < routePoints.Count; i++)
+        {
+            if (routePoints[i].Contains(term, StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+        return null;
+    }
 }

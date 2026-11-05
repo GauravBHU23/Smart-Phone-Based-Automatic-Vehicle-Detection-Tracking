@@ -4,6 +4,7 @@ import {
   AdminStats,
   AdminVehicle,
   AuthResponse,
+  RouteSearchResult,
   UserRole,
   Vehicle,
   VehicleStatus,
@@ -71,6 +72,10 @@ export const vehicleApi = {
     ),
   searchByRegistrationNumber: (regNumber: string) =>
     api.get<VehicleStatus>(`/api/vehicles/search?regNumber=${encodeURIComponent(regNumber)}`),
+  searchByRoute: (from: string, to: string) =>
+    api.get<RouteSearchResult[]>(
+      `/api/vehicles/search-by-route?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+    ),
   getStatus: (vehicleId: string) => api.get<VehicleStatus>(`/api/vehicles/${vehicleId}/status`),
   watch: (token: string, vehicleId: string) =>
     api.post<void>(`/api/vehicles/${vehicleId}/watch`, undefined, token),
