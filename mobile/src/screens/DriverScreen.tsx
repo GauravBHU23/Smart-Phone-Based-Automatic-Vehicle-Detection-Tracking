@@ -1,3 +1,4 @@
+import * as IntentLauncher from "expo-intent-launcher";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
@@ -6,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -196,6 +198,20 @@ export default function DriverScreen() {
     signOut();
   }
 
+  async function promptDisableBatteryOptimization() {
+    if (Platform.OS !== "android") return;
+    try {
+      await IntentLauncher.startActivityAsync(
+        IntentLauncher.ActivityAction.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+        { data: "package:com.gauravkum1275.vehicletracking" }
+      );
+    } catch (err) {
+      // Some OEM ROMs (or an already-exempted app) reject this intent —
+      // tracking should still proceed either way, this is best-effort.
+      console.warn("Could not open battery optimization settings:", err);
+    }
+  }
+
   async function startTracking(vehicleId: string) {
     if (!token) return;
 
@@ -213,6 +229,14 @@ export default function DriverScreen() {
           "Without background location, sharing stops as soon as you lock your phone or switch apps. You can enable \"Allow all the time\" in Settings for uninterrupted tracking."
         );
       }
+
+      // Background location permission alone isn't enough on many Android
+      // phones — aggressive battery-saving (common on Samsung, Oppo, Vivo,
+      // Xiaomi, etc.) kills the background GPS task soon after the app is
+      // minimized unless the app is explicitly exempted. This system dialog
+      // is the standard way to ask for that exemption, same prompt Android
+      // itself shows when an app requests it.
+      await promptDisableBatteryOptimization();
 
       await vehicleApi.startTracking(token, vehicleId);
       setActiveVehicleId(vehicleId);
