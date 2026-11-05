@@ -1,5 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
+import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -192,6 +193,7 @@ export default function DriverScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <StatusBar style="light" />
       <LinearGradient colors={["#1e3a8a", "#2563eb"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View>

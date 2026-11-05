@@ -1,4 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
+import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -152,6 +153,7 @@ export default function AdminScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <StatusBar style="light" />
       <LinearGradient colors={["#1e293b", "#334155"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
