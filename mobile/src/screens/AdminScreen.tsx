@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { adminApi } from "../api/endpoints";
+import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import { useAuth } from "../context/AuthContext";
 import { AdminDriver, AdminStats, AdminVehicle } from "../types";
 
@@ -29,6 +30,7 @@ export default function AdminScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   const loadAll = useCallback(async () => {
     if (!token) return;
@@ -61,10 +63,7 @@ export default function AdminScreen() {
   }
 
   function confirmSignOut() {
-    Alert.alert("Log out?", "", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: signOut },
-    ]);
+    setLogoutConfirmOpen(true);
   }
 
   async function toggleDriverSuspend(driver: AdminDriver) {
@@ -273,6 +272,15 @@ export default function AdminScreen() {
           )}
         </>
       )}
+
+      <LogoutConfirmModal
+        visible={logoutConfirmOpen}
+        onCancel={() => setLogoutConfirmOpen(false)}
+        onConfirm={() => {
+          setLogoutConfirmOpen(false);
+          signOut();
+        }}
+      />
     </SafeAreaView>
   );
 }

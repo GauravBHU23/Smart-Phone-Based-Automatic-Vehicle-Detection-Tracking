@@ -1,10 +1,11 @@
 import * as Location from "expo-location";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { MapStyleElement, MapType, Marker, Region } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { vehicleApi } from "../api/endpoints";
 import { useTrackingHub } from "../api/useTrackingHub";
+import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import { useAuth } from "../context/AuthContext";
 import { VehicleType, VehicleWithLocation } from "../types";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE } from "./mapStyles";
@@ -45,6 +46,8 @@ export default function PassengerScreen({ navigation }: any) {
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [mapTheme, setMapTheme] = useState<MapTheme>("light");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const activeTheme = MAP_THEMES.find((m) => m.value === mapTheme)!;
 
@@ -114,12 +117,14 @@ export default function PassengerScreen({ navigation }: any) {
 
   const markers = Object.values(vehicles).filter((v) => v.latitude != null && v.longitude != null);
 
-  function confirmSignOut() {
+  function openVehicle(vehicleId: string) {
+    setListOpen(false);
+    navigation.navigate("VehicleStatus", { vehicleId });
+  }
+
+  function handleSignOutPress() {
     setMenuOpen(false);
-    Alert.alert("Log out?", "", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: signOut },
-    ]);
+    setLogoutConfirmOpen(true);
   }
 
   return (
@@ -172,7 +177,7 @@ export default function PassengerScreen({ navigation }: any) {
               coordinate={{ latitude: v.latitude!, longitude: v.longitude! }}
               title={`${VEHICLE_MARKER_ICON[v.type] ?? ""} ${v.registrationNumber}`}
               description={v.fromLocation && v.toLocation ? `${v.fromLocation} → ${v.toLocation}` : undefined}
-              onCalloutPress={() => navigation.navigate("VehicleStatus", { vehicleId: v.id })}
+              onPress={() => openVehicle(v.id)}
             />
           ))}
         </MapView>
@@ -189,21 +194,23 @@ export default function PassengerScreen({ navigation }: any) {
 
       <TouchableOpacity
         style={styles.listFooter}
-        onPress={() => {
-          if (markers.length > 0) navigation.navigate("VehicleStatus", { vehicleId: markers[0].id });
-        }}
+        onPress={() => setListOpen(true)}
         disabled={markers.length === 0 || loading}
         activeOpacity={0.85}
       >
         {!loading && (
-          <Text style={styles.footerText}>
-            {markers.length > 0
-              ? `${markers.length} active vehicle${markers.length === 1 ? "" : "s"} nearby — tap a marker for live status`
-              : "No vehicles are sharing their location right now"}
-          </Text>
+          <>
+            <Text style={styles.footerText}>
+              {markers.length > 0
+                ? `${markers.length} active vehicle${markers.length === 1 ? "" : "s"} nearby`
+                : "No vehicles are sharing their location right now"}
+            </Text>
+            {markers.length > 0 && <Text style={styles.footerChevron}>▲</Text>}
+          </>
         )}
       </TouchableOpacity>
 
+      {/* Map type + account menu */}
       <Modal
         visible={menuOpen}
         transparent
@@ -239,13 +246,71 @@ export default function PassengerScreen({ navigation }: any) {
 
             <View style={styles.menuDivider} />
             <Text style={styles.menuTitle}>Signed in as {name}</Text>
-            <TouchableOpacity style={styles.menuItem} onPress={confirmSignOut} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleSignOutPress} activeOpacity={0.7}>
               <View style={styles.menuItemLeft}>
                 <Text style={styles.menuItemIcon}>⏻</Text>
                 <Text style={styles.menuItemLogout}>Log out</Text>
               </View>
             </TouchableOpacity>
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <LogoutConfirmModal
+        visible={logoutConfirmOpen}
+        message="You'll need to log in again to see live vehicles and alerts."
+        onCancel={() => setLogoutConfirmOpen(false)}
+        onConfirm={() => {
+          setLogoutConfirmOpen(false);
+          signOut();
+        }}
+      />
+
+      {/* Nearby vehicles list */}
+      <Modal
+        visible={listOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setListOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.sheetOverlay}
+          activeOpacity={1}
+          onPress={() => setListOpen(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.sheetCard} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>
+              {markers.length} vehicle{markers.length === 1 ? "" : "s"} nearby
+            </Text>
+            <FlatList
+              data={markers}
+              keyExtractor={(v) => v.id}
+              style={styles.sheetList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.sheetRow}
+                  onPress={() => openVehicle(item.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.sheetRowIconWrap}>
+                    <Text style={styles.sheetRowIcon}>{VEHICLE_MARKER_ICON[item.type] ?? "🚗"}</Text>
+                  </View>
+                  <View style={styles.sheetRowInfo}>
+                    <Text style={styles.sheetRowReg}>{item.registrationNumber}</Text>
+                    <Text style={styles.sheetRowSub}>
+                      {item.type}
+                      {item.fromLocation && item.toLocation ? ` · ${item.fromLocation} → ${item.toLocation}` : ""}
+                    </Text>
+                  </View>
+                  {item.speedKmh != null && (
+                    <Text style={styles.sheetRowSpeed}>{Math.round(item.speedKmh)} km/h</Text>
+                  )}
+                  <Text style={styles.sheetRowArrow}>›</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
@@ -314,8 +379,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
   },
   mapLoadingText: { fontSize: 13, color: "#334155", fontWeight: "600" },
-  listFooter: { padding: 14, borderTopWidth: 1, borderTopColor: "#eee", backgroundColor: "#fff", minHeight: 48, justifyContent: "center" },
-  footerText: { textAlign: "center", color: "#334155", fontWeight: "500" },
+  listFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    backgroundColor: "#fff",
+    minHeight: 48,
+  },
+  footerText: { textAlign: "center", color: "#334155", fontWeight: "600" },
+  footerChevron: { color: "#94a3b8", fontSize: 11 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.3)",
@@ -358,4 +434,40 @@ const styles = StyleSheet.create({
   menuCheck: { color: "#2563eb", fontWeight: "700" },
   menuDivider: { height: 1, backgroundColor: "#eee", marginVertical: 4 },
   menuItemLogout: { fontSize: 15, color: "#dc2626", fontWeight: "600" },
+
+  sheetOverlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.4)", justifyContent: "flex-end" },
+  sheetCard: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 10,
+    paddingHorizontal: 16,
+    maxHeight: "65%",
+  },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#e2e8f0", alignSelf: "center", marginBottom: 14 },
+  sheetTitle: { fontSize: 15, fontWeight: "800", color: "#1e293b", marginBottom: 10, paddingHorizontal: 4 },
+  sheetList: { marginBottom: 12 },
+  sheetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  sheetRowIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#eff6ff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  sheetRowIcon: { fontSize: 19 },
+  sheetRowInfo: { flex: 1 },
+  sheetRowReg: { fontSize: 15, fontWeight: "700", color: "#1e293b" },
+  sheetRowSub: { fontSize: 12, color: "#64748b", marginTop: 2 },
+  sheetRowSpeed: { fontSize: 12, color: "#16a34a", fontWeight: "700", marginRight: 6 },
+  sheetRowArrow: { fontSize: 20, color: "#cbd5e1" },
 });

@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "../api/client";
 import { vehicleApi } from "../api/endpoints";
+import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import { useAuth } from "../context/AuthContext";
 import { startBackgroundTracking, stopBackgroundTracking } from "../tracking/locationTask";
 import { Vehicle, VehicleType } from "../types";
@@ -34,6 +35,7 @@ export default function DriverScreen() {
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
   const [tracking, setTracking] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
     loadVehicles();
@@ -121,23 +123,15 @@ export default function DriverScreen() {
   }
 
   function confirmSignOut() {
-    const message = tracking
-      ? "You're still sharing your live location. Logging out will stop tracking and you'll need to log in again to continue driving."
-      : "You'll need to log in again to continue driving.";
+    setLogoutConfirmOpen(true);
+  }
 
-    Alert.alert("Log out?", message, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log out",
-        style: "destructive",
-        onPress: async () => {
-          if (tracking) {
-            await stopTracking();
-          }
-          signOut();
-        },
-      },
-    ]);
+  async function handleConfirmedSignOut() {
+    setLogoutConfirmOpen(false);
+    if (tracking) {
+      await stopTracking();
+    }
+    signOut();
   }
 
   async function startTracking(vehicleId: string) {
@@ -341,6 +335,17 @@ export default function DriverScreen() {
             <Text style={styles.emptySub}>Add your vehicle above to start sharing your live location.</Text>
           </View>
         }
+      />
+
+      <LogoutConfirmModal
+        visible={logoutConfirmOpen}
+        message={
+          tracking
+            ? "You're still sharing your live location. Logging out will stop tracking and you'll need to log in again to continue driving."
+            : "You'll need to log in again to continue driving."
+        }
+        onCancel={() => setLogoutConfirmOpen(false)}
+        onConfirm={handleConfirmedSignOut}
       />
     </SafeAreaView>
   );

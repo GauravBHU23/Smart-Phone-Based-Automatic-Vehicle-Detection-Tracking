@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   TextInput,
@@ -11,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "../api/client";
 import { vehicleApi } from "../api/endpoints";
+import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import { useAuth } from "../context/AuthContext";
 
 export default function SearchScreen({ navigation }: any) {
@@ -18,13 +18,7 @@ export default function SearchScreen({ navigation }: any) {
   const [regNumber, setRegNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  function confirmSignOut() {
-    Alert.alert("Log out?", "", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: signOut },
-    ]);
-  }
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   async function handleSearch() {
     if (!regNumber.trim()) return;
@@ -49,7 +43,7 @@ export default function SearchScreen({ navigation }: any) {
       {token && (
         <View style={styles.accountRow}>
           <Text style={styles.accountText}>Signed in as {name}</Text>
-          <TouchableOpacity onPress={confirmSignOut}>
+          <TouchableOpacity onPress={() => setLogoutConfirmOpen(true)}>
             <Text style={styles.accountLogout}>Log out</Text>
           </TouchableOpacity>
         </View>
@@ -103,6 +97,15 @@ export default function SearchScreen({ navigation }: any) {
           live status.
         </Text>
       </View>
+
+      <LogoutConfirmModal
+        visible={logoutConfirmOpen}
+        onCancel={() => setLogoutConfirmOpen(false)}
+        onConfirm={() => {
+          setLogoutConfirmOpen(false);
+          signOut();
+        }}
+      />
     </SafeAreaView>
   );
 }
