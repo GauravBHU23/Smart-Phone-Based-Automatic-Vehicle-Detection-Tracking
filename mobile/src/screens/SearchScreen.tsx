@@ -97,6 +97,7 @@ export default function SearchScreen({ navigation }: any) {
             activeOpacity={0.7}
           >
             <Text style={styles.accountButtonIcon}>⏻</Text>
+            <Text style={styles.accountButtonText}>Logout</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -251,15 +252,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 16,
     right: 16,
-    width: 36,
-    height: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 18,
     backgroundColor: "#f1f5f9",
-    alignItems: "center",
-    justifyContent: "center",
     zIndex: 1,
   },
-  accountButtonIcon: { fontSize: 16, color: "#dc2626" },
+  accountButtonIcon: { fontSize: 14, color: "#dc2626" },
+  accountButtonText: { fontSize: 13, color: "#dc2626", fontWeight: "600" },
   accountText: { fontSize: 12, color: "#94a3b8", textAlign: "center", marginTop: -8, marginBottom: 8 },
   hero: { alignItems: "center", paddingTop: 20, paddingHorizontal: 32, marginBottom: 16 },
   heroIcon: { fontSize: 40, marginBottom: 8 },
@@ -297,13 +300,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
   },
-  routeDotCol: { width: 16, alignItems: "center", paddingTop: 8 },
+  routeDotCol: { width: 16, alignItems: "center", paddingTop: 10 },
   routeDotFrom: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#16a34a" },
-  routeDotLine: { width: 2, flex: 1, minHeight: 20, backgroundColor: "#cbd5e1", marginVertical: 4 },
+  routeDotLine: { width: 2, flex: 1, minHeight: 32, backgroundColor: "#cbd5e1", marginVertical: 6 },
   routeDotTo: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#dc2626" },
   routeFieldCol: { flex: 1, marginLeft: 10 },
-  routeInput: { fontSize: 15, fontWeight: "600", color: "#1e293b", paddingVertical: 8 },
-  routeFieldDivider: { height: 1, backgroundColor: "#f1f5f9" },
+  routeInput: { fontSize: 15, fontWeight: "600", color: "#1e293b", paddingVertical: 12 },
+  routeFieldDivider: { height: 1, backgroundColor: "#f1f5f9", marginVertical: 2 },
   searchButton: {
     backgroundColor: "#2563eb",
     borderRadius: 14,
