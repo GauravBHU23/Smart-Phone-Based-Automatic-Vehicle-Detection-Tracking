@@ -49,7 +49,7 @@ export default function SearchScreen({ navigation }: any) {
         </View>
       )}
 
-      <View style={styles.centerContent}>
+      <View>
         <View style={styles.hero}>
           <Text style={styles.heroIcon}>🚌</Text>
           <Text style={styles.heroTitle}>Find any vehicle</Text>
@@ -114,8 +114,7 @@ const styles = StyleSheet.create({
   },
   accountText: { fontSize: 13, color: "#64748b" },
   accountLogout: { fontSize: 13, color: "#dc2626", fontWeight: "600" },
-  centerContent: { flex: 1, justifyContent: "center" },
-  hero: { alignItems: "center", paddingHorizontal: 32, marginBottom: 24 },
+  hero: { alignItems: "center", paddingTop: 20, paddingHorizontal: 32, marginBottom: 24 },
   heroIcon: { fontSize: 44, marginBottom: 12 },
   heroTitle: { fontSize: 22, fontWeight: "700", color: "#1e293b", marginBottom: 8 },
   heroSubtitle: { fontSize: 14, color: "#64748b", textAlign: "center", lineHeight: 20 },
