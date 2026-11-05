@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -43,30 +43,16 @@ export default function DriverScreen() {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [locationStale, setLocationStale] = useState(false);
 
-  // Mirrors tracking/activeVehicleId/token for the unmount cleanup below, which
-  // runs in a closure captured once on mount and would otherwise only ever see
-  // their initial (empty) values, never the latest ones.
-  const trackingStateRef = useRef({ tracking, activeVehicleId, token });
-  trackingStateRef.current = { tracking, activeVehicleId, token };
-
   useEffect(() => {
     loadVehicles();
-    return () => {
-      // If the screen unmounts (navigation, app reload) while live tracking
-      // is on, stopping only the local GPS task would leave the backend
-      // thinking this vehicle is still active — it would keep showing as
-      // "live" to passengers with a frozen last-known position, since no
-      // further location pings would ever arrive. Tell the backend too, so
-      // the vehicle is correctly marked not-active the moment tracking
-      // actually stops, not left stale.
-      stopBackgroundTracking();
-      const { tracking: wasTracking, activeVehicleId: vehicleId, token: authToken } = trackingStateRef.current;
-      if (wasTracking && vehicleId && authToken) {
-        vehicleApi.stopTracking(authToken, vehicleId).catch((err) => {
-          console.warn("Failed to stop tracking on unmount:", err);
-        });
-      }
-    };
+    // Deliberately no stop-tracking cleanup here: this screen can unmount
+    // for reasons that aren't "the driver wants to stop" — e.g. switching
+    // to another account on the same device during testing — and tracking
+    // should only ever end via the explicit Stop button or Log out, both of
+    // which already call stopTracking()/handleConfirmedSignOut() themselves.
+    // The background GPS task survives unmount by design (it's registered
+    // against TaskManager, not this component), so it keeps posting pings
+    // even while this screen isn't mounted.
   }, []);
 
   // While tracking, surface it when location pings stop actually reaching
@@ -94,6 +80,18 @@ export default function DriverScreen() {
     try {
       const list = await vehicleApi.myVehicles(token);
       setVehicles(list);
+
+      // This screen can remount with a vehicle that's still active on the
+      // backend (e.g. switched to another account and back) — restore the
+      // local tracking UI state to match instead of showing "Not sharing
+      // location" while a trip is actually still open server-side. The
+      // background GPS task itself (module-level, outside this component)
+      // keeps running across a remount already; this only re-syncs the UI.
+      const stillActive = list.find((v) => v.isActive);
+      if (stillActive) {
+        setActiveVehicleId(stillActive.id);
+        setTracking(true);
+      }
     } catch (err) {
       console.warn(err);
     } finally {
