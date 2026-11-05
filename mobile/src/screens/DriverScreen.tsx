@@ -185,11 +185,14 @@ export default function DriverScreen() {
     setLogoutConfirmOpen(true);
   }
 
-  async function handleConfirmedSignOut() {
+  // Logging out and stopping tracking are deliberately independent: a driver
+  // can hand their phone to someone else, or just close the app, while their
+  // vehicle keeps sharing its live location — tracking only stops via the
+  // explicit Stop button. The background GPS task runs off its own saved
+  // token (see locationTask.ts), not the auth session, so it keeps posting
+  // pings after signOut() clears the in-app session.
+  function handleConfirmedSignOut() {
     setLogoutConfirmOpen(false);
-    if (tracking) {
-      await stopTracking();
-    }
     signOut();
   }
 
@@ -429,7 +432,7 @@ export default function DriverScreen() {
         visible={logoutConfirmOpen}
         message={
           tracking
-            ? "You're still sharing your live location. Logging out will stop tracking and you'll need to log in again to continue driving."
+            ? "Your vehicle will keep sharing its live location in the background even after you log out. Use the Stop button first if you want to stop sharing location."
             : "You'll need to log in again to continue driving."
         }
         onCancel={() => setLogoutConfirmOpen(false)}
