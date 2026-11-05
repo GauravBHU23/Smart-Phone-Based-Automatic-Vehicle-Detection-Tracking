@@ -193,7 +193,7 @@ export default function DriverScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <LinearGradient colors={["#1e3a8a", "#2563eb"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View>

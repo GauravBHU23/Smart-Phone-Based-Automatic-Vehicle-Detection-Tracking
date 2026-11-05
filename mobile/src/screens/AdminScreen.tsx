@@ -153,7 +153,7 @@ export default function AdminScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <LinearGradient colors={["#1e293b", "#334155"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
