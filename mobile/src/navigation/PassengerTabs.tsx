@@ -41,7 +41,7 @@ export default function PassengerTabs() {
         component={SearchScreen}
         options={{
           tabBarLabel: "Find a Vehicle",
-          tabBarIcon: ({ focused }) => <TabIcon icon="🔍" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="🚌" focused={focused} />,
         }}
       />
     </Tab.Navigator>

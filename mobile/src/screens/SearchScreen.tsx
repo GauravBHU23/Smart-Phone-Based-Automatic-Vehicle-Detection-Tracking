@@ -50,7 +50,7 @@ export default function SearchScreen({ navigation }: any) {
       )}
 
       <View style={styles.hero}>
-        <Text style={styles.heroIcon}>🔍</Text>
+        <Text style={styles.heroIcon}>🚌</Text>
         <Text style={styles.heroTitle}>Find any vehicle</Text>
         <Text style={styles.heroSubtitle}>
           Enter a bus, auto, taxi, or bike's registration number to see its live
