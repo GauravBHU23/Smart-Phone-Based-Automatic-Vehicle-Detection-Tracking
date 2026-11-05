@@ -85,19 +85,22 @@ export default function SearchScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      {token && (
-        <View style={styles.accountRow}>
-          <Text style={styles.accountText}>Signed in as {name}</Text>
-          <TouchableOpacity onPress={() => setLogoutConfirmOpen(true)}>
-            <Text style={styles.accountLogout}>Log out</Text>
-          </TouchableOpacity>
+      <View style={styles.header}>
+        <View style={styles.hero}>
+          <Text style={styles.heroIcon}>🚌</Text>
+          <Text style={styles.heroTitle}>Find any vehicle</Text>
         </View>
-      )}
-
-      <View style={styles.hero}>
-        <Text style={styles.heroIcon}>🚌</Text>
-        <Text style={styles.heroTitle}>Find any vehicle</Text>
+        {token && (
+          <TouchableOpacity
+            style={styles.accountButton}
+            onPress={() => setLogoutConfirmOpen(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.accountButtonIcon}>⏻</Text>
+          </TouchableOpacity>
+        )}
       </View>
+      {token && <Text style={styles.accountText}>Signed in as {name}</Text>}
 
       <View style={styles.modeRow}>
         <TouchableOpacity
@@ -193,39 +196,40 @@ export default function SearchScreen({ navigation }: any) {
       )}
 
       {mode === "route" && routeResults && routeResults.length > 0 && (
-        <FlatList
-          data={routeResults}
-          keyExtractor={(v) => v.id}
-          style={styles.resultsList}
-          contentContainerStyle={styles.resultsListContent}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.resultRow}
-              onPress={() => navigation.navigate("VehicleStatus", { vehicleId: item.id })}
-              activeOpacity={0.7}
-            >
-              <View style={styles.resultIconWrap}>
-                <Text style={styles.resultIcon}>{VEHICLE_ICONS[item.type] ?? "🚗"}</Text>
-              </View>
-              <View style={styles.resultInfo}>
-                <View style={styles.resultTopRow}>
-                  <Text style={styles.resultReg}>{item.registrationNumber}</Text>
-                  {item.isActive && (
-                    <View style={styles.liveBadge}>
-                      <View style={styles.liveDot} />
-                      <Text style={styles.liveBadgeText}>LIVE</Text>
-                    </View>
-                  )}
+        <View style={styles.resultsWrap}>
+          <FlatList
+            data={routeResults}
+            keyExtractor={(v) => v.id}
+            contentContainerStyle={styles.resultsListContent}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.resultRow}
+                onPress={() => navigation.navigate("VehicleStatus", { vehicleId: item.id })}
+                activeOpacity={0.7}
+              >
+                <View style={styles.resultIconWrap}>
+                  <Text style={styles.resultIcon}>{VEHICLE_ICONS[item.type] ?? "🚗"}</Text>
                 </View>
-                <Text style={styles.resultRoute}>
-                  {item.fromLocation ?? "—"} → {item.toLocation ?? "—"}
-                </Text>
-                <Text style={styles.resultDriver}>Driver: {item.driverName}</Text>
-              </View>
-              <Text style={styles.resultArrow}>›</Text>
-            </TouchableOpacity>
-          )}
-        />
+                <View style={styles.resultInfo}>
+                  <View style={styles.resultTopRow}>
+                    <Text style={styles.resultReg}>{item.registrationNumber}</Text>
+                    {item.isActive && (
+                      <View style={styles.liveBadge}>
+                        <View style={styles.liveDot} />
+                        <Text style={styles.liveBadgeText}>LIVE</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.resultRoute}>
+                    {item.fromLocation ?? "—"} → {item.toLocation ?? "—"}
+                  </Text>
+                  <Text style={styles.resultDriver}>Driver: {item.driverName}</Text>
+                </View>
+                <Text style={styles.resultArrow}>›</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
       )}
 
       <LogoutConfirmModal
@@ -242,15 +246,21 @@ export default function SearchScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
-  accountRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  header: { position: "relative" },
+  accountButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f1f5f9",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    justifyContent: "center",
+    zIndex: 1,
   },
-  accountText: { fontSize: 13, color: "#64748b" },
-  accountLogout: { fontSize: 13, color: "#dc2626", fontWeight: "600" },
+  accountButtonIcon: { fontSize: 16, color: "#dc2626" },
+  accountText: { fontSize: 12, color: "#94a3b8", textAlign: "center", marginTop: -8, marginBottom: 8 },
   hero: { alignItems: "center", paddingTop: 20, paddingHorizontal: 32, marginBottom: 16 },
   heroIcon: { fontSize: 40, marginBottom: 8 },
   heroTitle: { fontSize: 22, fontWeight: "700", color: "#1e293b" },
@@ -314,8 +324,8 @@ const styles = StyleSheet.create({
     borderColor: "#fecaca",
   },
   errorText: { color: "#b91c1c", fontSize: 13 },
-  resultsList: { marginTop: 16 },
-  resultsListContent: { paddingHorizontal: 20, paddingBottom: 16 },
+  resultsWrap: { flex: 1, marginTop: 16 },
+  resultsListContent: { paddingHorizontal: 20, paddingBottom: 24 },
   resultRow: {
     flexDirection: "row",
     alignItems: "center",
