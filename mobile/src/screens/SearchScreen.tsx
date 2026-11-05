@@ -49,53 +49,46 @@ export default function SearchScreen({ navigation }: any) {
         </View>
       )}
 
-      <View style={styles.hero}>
-        <Text style={styles.heroIcon}>🚌</Text>
-        <Text style={styles.heroTitle}>Find any vehicle</Text>
-        <Text style={styles.heroSubtitle}>
-          Enter a bus, auto, taxi, or bike's registration number to see its live
-          location, route, and status — no account needed.
-        </Text>
-      </View>
-
-      <View style={styles.searchBox}>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. UP70AB1234"
-          placeholderTextColor="#9ca3af"
-          value={regNumber}
-          onChangeText={(text) => {
-            setRegNumber(text);
-            setError(null);
-          }}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          onSubmitEditing={handleSearch}
-          returnKeyType="search"
-        />
-        <TouchableOpacity
-          style={[styles.searchButton, (!regNumber.trim() || loading) && styles.searchButtonDisabled]}
-          onPress={handleSearch}
-          disabled={!regNumber.trim() || loading}
-          activeOpacity={0.85}
-        >
-          {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.searchButtonText}>Search</Text>}
-        </TouchableOpacity>
-      </View>
-
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+      <View style={styles.centerContent}>
+        <View style={styles.hero}>
+          <Text style={styles.heroIcon}>🚌</Text>
+          <Text style={styles.heroTitle}>Find any vehicle</Text>
+          <Text style={styles.heroSubtitle}>
+            Enter a bus, auto, taxi, or bike's registration number to see its live
+            location, route, and status.
+          </Text>
         </View>
-      )}
 
-      <View style={styles.helpCard}>
-        <Text style={styles.helpTitle}>Looking for a family member's ride?</Text>
-        <Text style={styles.helpText}>
-          Ask the driver for the vehicle's registration number, then search it here
-          to see exactly where they are on the map — just like checking a train's
-          live status.
-        </Text>
+        <View style={styles.searchBox}>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. UP70AB1234"
+            placeholderTextColor="#9ca3af"
+            value={regNumber}
+            onChangeText={(text) => {
+              setRegNumber(text);
+              setError(null);
+            }}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
+          />
+          <TouchableOpacity
+            style={[styles.searchButton, (!regNumber.trim() || loading) && styles.searchButtonDisabled]}
+            onPress={handleSearch}
+            disabled={!regNumber.trim() || loading}
+            activeOpacity={0.85}
+          >
+            {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.searchButtonText}>Search</Text>}
+          </TouchableOpacity>
+        </View>
+
+        {error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
       </View>
 
       <LogoutConfirmModal
@@ -121,7 +114,8 @@ const styles = StyleSheet.create({
   },
   accountText: { fontSize: 13, color: "#64748b" },
   accountLogout: { fontSize: 13, color: "#dc2626", fontWeight: "600" },
-  hero: { alignItems: "center", paddingTop: 20, paddingHorizontal: 32, marginBottom: 24 },
+  centerContent: { flex: 1, justifyContent: "center" },
+  hero: { alignItems: "center", paddingHorizontal: 32, marginBottom: 24 },
   heroIcon: { fontSize: 44, marginBottom: 12 },
   heroTitle: { fontSize: 22, fontWeight: "700", color: "#1e293b", marginBottom: 8 },
   heroSubtitle: { fontSize: 14, color: "#64748b", textAlign: "center", lineHeight: 20 },
@@ -157,14 +151,4 @@ const styles = StyleSheet.create({
     borderColor: "#fecaca",
   },
   errorText: { color: "#b91c1c", fontSize: 13 },
-  helpCard: {
-    marginTop: "auto",
-    marginHorizontal: 20,
-    marginBottom: 24,
-    backgroundColor: "#eff6ff",
-    borderRadius: 14,
-    padding: 16,
-  },
-  helpTitle: { fontSize: 14, fontWeight: "700", color: "#1e3a8a", marginBottom: 6 },
-  helpText: { fontSize: 13, color: "#1e40af", lineHeight: 19 },
 });
