@@ -2,7 +2,7 @@ using VehicleTracking.Api.Models;
 
 namespace VehicleTracking.Api.DTOs;
 
-public record StopInput(string Name, double? Latitude, double? Longitude);
+public record StopInput(string Name, double? Latitude, double? Longitude, Guid? PlaceId);
 
 public record RegisterVehicleRequest(
     string RegistrationNumber,
@@ -11,6 +11,8 @@ public record RegisterVehicleRequest(
     string? ToLocation,
     double? DestinationLatitude,
     double? DestinationLongitude,
+    Guid? FromPlaceId,
+    Guid? ToPlaceId,
     List<StopInput>? Stops
 );
 
@@ -62,6 +64,8 @@ public record VehicleStatusResponse(
 );
 
 public record RegisterPushTokenRequest(string PushToken);
+
+public record PlaceDto(Guid Id, string Code, string Name, double? Latitude, double? Longitude);
 
 public record RouteSearchResultResponse(
     Guid Id,

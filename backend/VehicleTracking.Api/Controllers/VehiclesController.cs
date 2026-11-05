@@ -62,12 +62,29 @@ public class VehiclesController : ControllerBase
             DriverId = CurrentUserId
         };
 
+        // Resolve From/To/Stops against the shared Place directory so route search
+        // can match by exact place ID instead of fuzzy text — the passenger and
+        // driver both pick from the same autocomplete, so this is usually already
+        // an existing place; FindOrCreatePlace only inserts a new row the first
+        // time any driver registers a never-seen-before place name.
+        if (!string.IsNullOrWhiteSpace(request.FromLocation))
+        {
+            vehicle.FromPlaceId = request.FromPlaceId
+                ?? await FindOrCreatePlace(request.FromLocation, null, null);
+        }
+        if (!string.IsNullOrWhiteSpace(request.ToLocation))
+        {
+            vehicle.ToPlaceId = request.ToPlaceId
+                ?? await FindOrCreatePlace(request.ToLocation, request.DestinationLatitude, request.DestinationLongitude);
+        }
+
         if (request.Stops is { Count: > 0 })
         {
             for (var i = 0; i < request.Stops.Count; i++)
             {
                 var s = request.Stops[i];
-                vehicle.Stops.Add(new RouteStop { Name = s.Name, Order = i, Latitude = s.Latitude, Longitude = s.Longitude });
+                var placeId = s.PlaceId ?? await FindOrCreatePlace(s.Name, s.Latitude, s.Longitude);
+                vehicle.Stops.Add(new RouteStop { Name = s.Name, Order = i, Latitude = s.Latitude, Longitude = s.Longitude, PlaceId = placeId });
             }
         }
 
@@ -85,6 +102,81 @@ public class VehiclesController : ControllerBase
 
         return Ok(ToVehicleResponse(vehicle));
     }
+
+    /// <summary>
+    /// Resolves a place name to a Place row, creating one if this exact name
+    /// (case-insensitive) has never been seen before. Two drivers registering
+    /// the same new place name concurrently both reach the insert path; the
+    /// unique index on Name (case-insensitive, see AppDbContext) means only one
+    /// insert wins — the loser retries the lookup and finds the winner's row,
+    /// the same DbUpdateException-then-reread pattern used for vehicle
+    /// registration numbers above.
+    /// </summary>
+    private async Task<Guid> FindOrCreatePlace(string name, double? latitude, double? longitude)
+    {
+        var trimmed = NormalizePlaceName(name);
+
+        var existing = await _db.Places.FirstOrDefaultAsync(p => EF.Functions.ILike(p.Name, trimmed));
+        if (existing is not null)
+        {
+            // First successful geocode for this place wins and sticks; don't
+            // overwrite known coordinates with a null from a later registration.
+            if (existing.Latitude is null && existing.Longitude is null && latitude is not null && longitude is not null)
+            {
+                existing.Latitude = latitude;
+                existing.Longitude = longitude;
+                await _db.SaveChangesAsync();
+            }
+            return existing.Id;
+        }
+
+        var place = new Place
+        {
+            Code = await GenerateUniquePlaceCode(trimmed),
+            Name = trimmed,
+            Latitude = latitude,
+            Longitude = longitude
+        };
+
+        _db.Places.Add(place);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.Entry(place).State = EntityState.Detached;
+            var winner = await _db.Places.FirstOrDefaultAsync(p => EF.Functions.ILike(p.Name, trimmed));
+            if (winner is not null) return winner.Id;
+            throw; // Unexpected: conflict wasn't on the name after all.
+        }
+
+        return place.Id;
+    }
+
+    private async Task<string> GenerateUniquePlaceCode(string name)
+    {
+        var alphanumeric = new string(name.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        var baseCode = alphanumeric.Length >= 4 ? alphanumeric[..4] : alphanumeric.PadRight(4, 'X');
+        if (baseCode.Length == 0) baseCode = "PLAC";
+
+        var code = baseCode;
+        var suffix = 1;
+        while (await _db.Places.AnyAsync(p => p.Code == code))
+        {
+            suffix++;
+            code = $"{baseCode}{suffix}";
+        }
+
+        return code;
+    }
+
+    // Collapses internal whitespace too, not just leading/trailing — otherwise
+    // "Civil Lines" and "civil  lines" (double space) would be treated as two
+    // different places, defeating the whole point of the directory.
+    private static string NormalizePlaceName(string name) =>
+        string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     [HttpGet("mine")]
     [Authorize(Roles = "Driver")]
@@ -437,41 +529,43 @@ public class VehiclesController : ControllerBase
     [HttpGet("search-by-route")]
     [AllowAnonymous]
     public async Task<ActionResult<List<RouteSearchResultResponse>>> SearchByRoute(
-        [FromQuery] string from,
-        [FromQuery] string to)
+        [FromQuery] Guid fromPlaceId,
+        [FromQuery] Guid toPlaceId)
     {
-        if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
-            return BadRequest("Both from and to are required.");
+        if (fromPlaceId == Guid.Empty || toPlaceId == Guid.Empty)
+            return BadRequest("Both fromPlaceId and toPlaceId are required.");
 
-        var fromTerm = from.Trim();
-        var toTerm = to.Trim();
-
-        var vehicles = await _db.Vehicles
+        // Narrow to vehicles whose route touches either place at all (indexed FK
+        // lookups) before doing the ordered-position check in memory — avoids a
+        // full table scan on every search, unlike the old text-Contains version.
+        var candidateVehicles = await _db.Vehicles
             .Include(v => v.Driver)
             .Include(v => v.Stops)
+            .Where(v =>
+                v.FromPlaceId == fromPlaceId || v.ToPlaceId == fromPlaceId ||
+                v.FromPlaceId == toPlaceId || v.ToPlaceId == toPlaceId ||
+                v.Stops.Any(s => s.PlaceId == fromPlaceId || s.PlaceId == toPlaceId))
             .ToListAsync();
 
         var matches = new List<Vehicle>();
-        foreach (var vehicle in vehicles)
+        foreach (var vehicle in candidateVehicles)
         {
             // Build the vehicle's full ordered route: From (position 0), each
             // stop in sequence, then To (last position) — then find where the
-            // searched "from" and "to" terms appear in that sequence. Matching
-            // both From and To by name alone isn't enough: it would also match
-            // someone searching the reverse direction of this vehicle's route,
-            // so we additionally require the "from" match to come at an
-            // earlier position than the "to" match.
-            var routePoints = new List<string>();
-            if (!string.IsNullOrWhiteSpace(vehicle.FromLocation)) routePoints.Add(vehicle.FromLocation);
-            routePoints.AddRange(vehicle.Stops.OrderBy(s => s.Order).Select(s => s.Name));
-            if (!string.IsNullOrWhiteSpace(vehicle.ToLocation)) routePoints.Add(vehicle.ToLocation);
+            // searched from/to place IDs appear in that sequence. Matching both
+            // by ID alone isn't enough: it would also match someone searching
+            // the reverse direction of this vehicle's route, so we additionally
+            // require the "from" match to come at an earlier position than the
+            // "to" match.
+            var routePlaceIds = new List<Guid?>();
+            routePlaceIds.Add(vehicle.FromPlaceId);
+            routePlaceIds.AddRange(vehicle.Stops.OrderBy(s => s.Order).Select(s => s.PlaceId));
+            routePlaceIds.Add(vehicle.ToPlaceId);
 
-            if (routePoints.Count == 0) continue;
+            var fromIndex = routePlaceIds.FindIndex(id => id == fromPlaceId);
+            var toIndex = routePlaceIds.FindIndex(id => id == toPlaceId);
 
-            var fromIndex = FindFirstMatchIndex(routePoints, fromTerm);
-            var toIndex = FindFirstMatchIndex(routePoints, toTerm);
-
-            if (fromIndex is not null && toIndex is not null && fromIndex < toIndex)
+            if (fromIndex >= 0 && toIndex >= 0 && fromIndex < toIndex)
             {
                 matches.Add(vehicle);
             }
@@ -507,15 +601,5 @@ public class VehiclesController : ControllerBase
         .ToList();
 
         return Ok(result);
-    }
-
-    private static int? FindFirstMatchIndex(List<string> routePoints, string term)
-    {
-        for (var i = 0; i < routePoints.Count; i++)
-        {
-            if (routePoints[i].Contains(term, StringComparison.OrdinalIgnoreCase))
-                return i;
-        }
-        return null;
     }
 }

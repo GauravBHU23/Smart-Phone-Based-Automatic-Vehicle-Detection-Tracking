@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Trip> Trips => Set<Trip>();
     public DbSet<RouteStop> RouteStops => Set<RouteStop>();
     public DbSet<WatchedVehicle> WatchedVehicles => Set<WatchedVehicle>();
+    public DbSet<Place> Places => Set<Place>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,25 @@ public class AppDbContext : DbContext
                 .WithMany(u => u.Vehicles)
                 .HasForeignKey(v => v.DriverId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(v => v.FromPlace)
+                .WithMany()
+                .HasForeignKey(v => v.FromPlaceId)
+                .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(v => v.ToPlace)
+                .WithMany()
+                .HasForeignKey(v => v.ToPlaceId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Place>(e =>
+        {
+            e.HasIndex(p => p.Code).IsUnique();
+            // Case-insensitive uniqueness is enforced via a Postgres expression index on
+            // lower("Name"), added by raw SQL in the migration (EF's fluent HasIndex can't
+            // express a functional index) — see AddPlaceDirectory migration. FindOrCreatePlace
+            // also normalizes to lowercase before the initial lookup, but this DB-level
+            // constraint is what actually prevents two concurrent requests from both
+            // inserting "Civil Lines" / "civil lines" as separate rows.
         });
 
         modelBuilder.Entity<LocationPing>(e =>
@@ -63,6 +83,10 @@ public class AppDbContext : DbContext
                 .WithMany(v => v.Stops)
                 .HasForeignKey(s => s.VehicleId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(s => s.Place)
+                .WithMany()
+                .HasForeignKey(s => s.PlaceId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<WatchedVehicle>(e =>

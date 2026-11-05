@@ -58,6 +58,37 @@ namespace VehicleTracking.Api.Migrations
                     b.ToTable("LocationPings");
                 });
 
+            modelBuilder.Entity("VehicleTracking.Api.Models.Place", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Places");
+                });
+
             modelBuilder.Entity("VehicleTracking.Api.Models.RouteStop", b =>
                 {
                     b.Property<Guid>("Id")
@@ -77,10 +108,15 @@ namespace VehicleTracking.Api.Migrations
                     b.Property<int>("Order")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("PlaceId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("VehicleId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PlaceId");
 
                     b.HasIndex("VehicleId", "Order");
 
@@ -190,6 +226,9 @@ namespace VehicleTracking.Api.Migrations
                     b.Property<string>("FromLocation")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("FromPlaceId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -206,6 +245,9 @@ namespace VehicleTracking.Api.Migrations
                     b.Property<string>("ToLocation")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("ToPlaceId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("text");
@@ -214,8 +256,12 @@ namespace VehicleTracking.Api.Migrations
 
                     b.HasIndex("DriverId");
 
+                    b.HasIndex("FromPlaceId");
+
                     b.HasIndex("RegistrationNumber")
                         .IsUnique();
+
+                    b.HasIndex("ToPlaceId");
 
                     b.ToTable("Vehicles");
                 });
@@ -258,11 +304,18 @@ namespace VehicleTracking.Api.Migrations
 
             modelBuilder.Entity("VehicleTracking.Api.Models.RouteStop", b =>
                 {
+                    b.HasOne("VehicleTracking.Api.Models.Place", "Place")
+                        .WithMany()
+                        .HasForeignKey("PlaceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("VehicleTracking.Api.Models.Vehicle", "Vehicle")
                         .WithMany("Stops")
                         .HasForeignKey("VehicleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Place");
 
                     b.Navigation("Vehicle");
                 });
@@ -286,7 +339,21 @@ namespace VehicleTracking.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("VehicleTracking.Api.Models.Place", "FromPlace")
+                        .WithMany()
+                        .HasForeignKey("FromPlaceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("VehicleTracking.Api.Models.Place", "ToPlace")
+                        .WithMany()
+                        .HasForeignKey("ToPlaceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Driver");
+
+                    b.Navigation("FromPlace");
+
+                    b.Navigation("ToPlace");
                 });
 
             modelBuilder.Entity("VehicleTracking.Api.Models.WatchedVehicle", b =>

@@ -12,8 +12,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "../api/client";
 import { vehicleApi } from "../api/endpoints";
 import LogoutConfirmModal from "../components/LogoutConfirmModal";
+import PlaceAutocomplete from "../components/PlaceAutocomplete";
 import { useAuth } from "../context/AuthContext";
-import { RouteSearchResult } from "../types";
+import { Place, RouteSearchResult } from "../types";
 
 const VEHICLE_ICONS: Record<string, string> = {
   Bus: "🚌",
@@ -31,8 +32,8 @@ export default function SearchScreen({ navigation }: any) {
   const { token, name, signOut } = useAuth();
   const [mode, setMode] = useState<SearchMode>("number");
   const [regNumber, setRegNumber] = useState("");
-  const [fromLocation, setFromLocation] = useState("");
-  const [toLocation, setToLocation] = useState("");
+  const [fromPlace, setFromPlace] = useState<Place | { id: null; name: string } | null>(null);
+  const [toPlace, setToPlace] = useState<Place | { id: null; name: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [routeResults, setRouteResults] = useState<RouteSearchResult[] | null>(null);
@@ -63,15 +64,15 @@ export default function SearchScreen({ navigation }: any) {
   }
 
   async function handleSearchByRoute() {
-    if (!fromLocation.trim() || !toLocation.trim()) return;
+    if (!fromPlace?.id || !toPlace?.id) return;
     setLoading(true);
     setError(null);
     setRouteResults(null);
     try {
-      const results = await vehicleApi.searchByRoute(fromLocation.trim(), toLocation.trim());
+      const results = await vehicleApi.searchByRoute(fromPlace.id, toPlace.id);
       setRouteResults(results);
       if (results.length === 0) {
-        setError("No vehicles found on this route yet. Try different place names, or check back later.");
+        setError("No vehicles found on this route yet. Try different places, or check back later.");
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -81,7 +82,7 @@ export default function SearchScreen({ navigation }: any) {
   }
 
   const canSearchByNumber = !!regNumber.trim() && !loading;
-  const canSearchByRoute = !!fromLocation.trim() && !!toLocation.trim() && !loading;
+  const canSearchByRoute = !!fromPlace?.id && !!toPlace?.id && !loading;
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -154,28 +155,24 @@ export default function SearchScreen({ navigation }: any) {
               <View style={styles.routeDotTo} />
             </View>
             <View style={styles.routeFieldCol}>
-              <TextInput
-                style={styles.routeInput}
-                placeholder="From (e.g. Civil Lines)"
-                placeholderTextColor="#9ca3af"
-                value={fromLocation}
-                onChangeText={(text) => {
-                  setFromLocation(text);
+              <PlaceAutocomplete
+                value={fromPlace}
+                onChange={(place) => {
+                  setFromPlace(place);
                   setError(null);
                 }}
+                placeholder="From (e.g. Civil Lines)"
+                bare
               />
               <View style={styles.routeFieldDivider} />
-              <TextInput
-                style={styles.routeInput}
-                placeholder="To (e.g. Naini)"
-                placeholderTextColor="#9ca3af"
-                value={toLocation}
-                onChangeText={(text) => {
-                  setToLocation(text);
+              <PlaceAutocomplete
+                value={toPlace}
+                onChange={(place) => {
+                  setToPlace(place);
                   setError(null);
                 }}
-                onSubmitEditing={handleSearchByRoute}
-                returnKeyType="search"
+                placeholder="To (e.g. Naini)"
+                bare
               />
             </View>
           </View>
@@ -305,7 +302,6 @@ const styles = StyleSheet.create({
   routeDotLine: { width: 2, flex: 1, minHeight: 32, backgroundColor: "#cbd5e1", marginVertical: 6 },
   routeDotTo: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#dc2626" },
   routeFieldCol: { flex: 1, marginLeft: 10 },
-  routeInput: { fontSize: 15, fontWeight: "600", color: "#1e293b", paddingVertical: 12 },
   routeFieldDivider: { height: 1, backgroundColor: "#f1f5f9", marginVertical: 2 },
   searchButton: {
     backgroundColor: "#2563eb",

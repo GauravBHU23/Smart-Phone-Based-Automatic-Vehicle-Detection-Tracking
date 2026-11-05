@@ -14,6 +14,11 @@ public class Vehicle
     public double? DestinationLatitude { get; set; }
     public double? DestinationLongitude { get; set; }
 
+    public Guid? FromPlaceId { get; set; }
+    public Place? FromPlace { get; set; }
+    public Guid? ToPlaceId { get; set; }
+    public Place? ToPlace { get; set; }
+
     public Guid DriverId { get; set; }
     public User? Driver { get; set; }
 

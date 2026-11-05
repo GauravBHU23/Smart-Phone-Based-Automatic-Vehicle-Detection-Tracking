@@ -16,6 +16,14 @@ export interface RouteStop {
   reached: boolean;
 }
 
+export interface Place {
+  id: string;
+  code: string;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export interface Vehicle {
   id: string;
   registrationNumber: string;

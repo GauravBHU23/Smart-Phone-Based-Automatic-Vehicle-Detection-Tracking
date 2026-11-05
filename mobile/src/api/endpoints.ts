@@ -4,6 +4,7 @@ import {
   AdminStats,
   AdminVehicle,
   AuthResponse,
+  Place,
   RouteSearchResult,
   UserRole,
   Vehicle,
@@ -19,12 +20,18 @@ export const authApi = {
     api.post<AuthResponse>("/api/auth/login", { phone, password }),
 };
 
+export const placeApi = {
+  search: (query: string) => api.get<Place[]>(`/api/places/search?q=${encodeURIComponent(query)}`),
+};
+
 export interface RegisterVehicleOptions {
   fromLocation?: string;
   toLocation?: string;
+  fromPlaceId?: string;
+  toPlaceId?: string;
   destinationLatitude?: number;
   destinationLongitude?: number;
-  stops?: { name: string; latitude?: number; longitude?: number }[];
+  stops?: { name: string; latitude?: number; longitude?: number; placeId?: string }[];
 }
 
 export const vehicleApi = {
@@ -41,6 +48,8 @@ export const vehicleApi = {
         type,
         fromLocation: options.fromLocation,
         toLocation: options.toLocation,
+        fromPlaceId: options.fromPlaceId,
+        toPlaceId: options.toPlaceId,
         destinationLatitude: options.destinationLatitude,
         destinationLongitude: options.destinationLongitude,
         stops: options.stops,
@@ -72,9 +81,9 @@ export const vehicleApi = {
     ),
   searchByRegistrationNumber: (regNumber: string) =>
     api.get<VehicleStatus>(`/api/vehicles/search?regNumber=${encodeURIComponent(regNumber)}`),
-  searchByRoute: (from: string, to: string) =>
+  searchByRoute: (fromPlaceId: string, toPlaceId: string) =>
     api.get<RouteSearchResult[]>(
-      `/api/vehicles/search-by-route?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+      `/api/vehicles/search-by-route?fromPlaceId=${encodeURIComponent(fromPlaceId)}&toPlaceId=${encodeURIComponent(toPlaceId)}`
     ),
   getStatus: (vehicleId: string) => api.get<VehicleStatus>(`/api/vehicles/${vehicleId}/status`),
   watch: (token: string, vehicleId: string) =>

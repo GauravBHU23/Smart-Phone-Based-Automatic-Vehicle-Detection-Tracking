@@ -16,12 +16,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "../api/client";
 import { vehicleApi } from "../api/endpoints";
 import LogoutConfirmModal from "../components/LogoutConfirmModal";
+import PlaceAutocomplete from "../components/PlaceAutocomplete";
 import { useAuth } from "../context/AuthContext";
 import { startBackgroundTracking, stopBackgroundTracking } from "../tracking/locationTask";
-import { Vehicle, VehicleType } from "../types";
+import { Place, Vehicle, VehicleType } from "../types";
 
 const VEHICLE_TYPES: VehicleType[] = ["Bus", "Auto", "Taxi", "Bike", "Truck", "Ambulance", "Other"];
 const LOCATION_INTERVAL_MS = 5000;
+
+type PlaceSelection = Place | { id: null; name: string };
+let nextStopKey = 0;
 
 export default function DriverScreen() {
   const { token, name, signOut } = useAuth();
@@ -29,9 +33,9 @@ export default function DriverScreen() {
   const [loading, setLoading] = useState(true);
   const [regNumber, setRegNumber] = useState("");
   const [vehicleType, setVehicleType] = useState<VehicleType>("Bus");
-  const [fromLocation, setFromLocation] = useState("");
-  const [toLocation, setToLocation] = useState("");
-  const [stopsText, setStopsText] = useState("");
+  const [fromPlace, setFromPlace] = useState<PlaceSelection | null>(null);
+  const [toPlace, setToPlace] = useState<PlaceSelection | null>(null);
+  const [stops, setStops] = useState<{ key: number; place: PlaceSelection | null }[]>([]);
   const [showRouteFields, setShowRouteFields] = useState(false);
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
   const [tracking, setTracking] = useState(false);
@@ -58,58 +62,63 @@ export default function DriverScreen() {
     }
   }
 
+  // Geocodes a place selection only when it's brand new (no id yet, so no
+  // known coordinates from the Place directory) — an existing place picked
+  // from the autocomplete already has coordinates server-side, no need to
+  // geocode it again client-side.
+  async function resolveCoordinates(place: PlaceSelection | null): Promise<{ latitude?: number; longitude?: number }> {
+    if (!place || place.id !== null) return {};
+    try {
+      const results = await Location.geocodeAsync(place.name);
+      if (results.length > 0) return { latitude: results[0].latitude, longitude: results[0].longitude };
+    } catch (geocodeErr) {
+      console.warn("Could not geocode place:", geocodeErr);
+    }
+    return {};
+  }
+
   async function handleAddVehicle() {
     if (!token || !regNumber) return;
     setAdding(true);
     try {
-      let destinationLatitude: number | undefined;
-      let destinationLongitude: number | undefined;
+      const toCoords = await resolveCoordinates(toPlace);
 
-      if (toLocation.trim()) {
-        try {
-          const results = await Location.geocodeAsync(toLocation.trim());
-          if (results.length > 0) {
-            destinationLatitude = results[0].latitude;
-            destinationLongitude = results[0].longitude;
-          }
-        } catch (geocodeErr) {
-          console.warn("Could not geocode destination:", geocodeErr);
-        }
-      }
-
-      const stopNames = stopsText
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      const stops = await Promise.all(
-        stopNames.map(async (name) => {
-          try {
-            const results = await Location.geocodeAsync(name);
-            return { name, latitude: results[0]?.latitude, longitude: results[0]?.longitude };
-          } catch {
-            return { name };
-          }
-        })
+      const stopInputs = await Promise.all(
+        stops
+          .filter((s) => s.place && s.place.name.trim())
+          .map(async (s) => {
+            const place = s.place!;
+            const coords = await resolveCoordinates(place);
+            return {
+              name: place.name,
+              placeId: place.id ?? undefined,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+            };
+          })
       );
 
       await vehicleApi.registerVehicle(token, regNumber, vehicleType, {
-        fromLocation: fromLocation.trim() || undefined,
-        toLocation: toLocation.trim() || undefined,
-        destinationLatitude,
-        destinationLongitude,
-        stops: stops.length > 0 ? stops : undefined,
+        fromLocation: fromPlace?.name.trim() || undefined,
+        toLocation: toPlace?.name.trim() || undefined,
+        fromPlaceId: fromPlace?.id ?? undefined,
+        toPlaceId: toPlace?.id ?? undefined,
+        destinationLatitude: toCoords.latitude,
+        destinationLongitude: toCoords.longitude,
+        stops: stopInputs.length > 0 ? stopInputs : undefined,
       });
 
-      const hadDestinationName = toLocation.trim().length > 0;
+      const hadDestinationName = !!toPlace?.name.trim();
+      const destinationUnresolved = hadDestinationName && toPlace?.id === null && toCoords.latitude === undefined;
+
       setRegNumber("");
-      setFromLocation("");
-      setToLocation("");
-      setStopsText("");
+      setFromPlace(null);
+      setToPlace(null);
+      setStops([]);
       setShowRouteFields(false);
       await loadVehicles();
 
-      if (hadDestinationName && destinationLatitude === undefined) {
+      if (destinationUnresolved) {
         Alert.alert(
           "Vehicle added",
           "We couldn't pinpoint your destination on the map, so arrival alerts won't trigger automatically for this trip. You can still track it live."
@@ -121,6 +130,18 @@ export default function DriverScreen() {
     } finally {
       setAdding(false);
     }
+  }
+
+  function addStopRow() {
+    setStops((prev) => [...prev, { key: nextStopKey++, place: null }]);
+  }
+
+  function removeStopRow(key: number) {
+    setStops((prev) => prev.filter((s) => s.key !== key));
+  }
+
+  function updateStopRow(key: number, place: PlaceSelection) {
+    setStops((prev) => prev.map((s) => (s.key === key ? { ...s, place } : s)));
   }
 
   function confirmSignOut() {
@@ -254,27 +275,46 @@ export default function DriverScreen() {
                 Adding a route lets passengers and family see where this vehicle is
                 headed and when it has arrived — just like a train's status.
               </Text>
-              <TextInput
-                style={styles.input}
-                placeholder="From (e.g. Civil Lines)"
-                placeholderTextColor="#9ca3af"
-                value={fromLocation}
-                onChangeText={setFromLocation}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="To (e.g. Naini)"
-                placeholderTextColor="#9ca3af"
-                value={toLocation}
-                onChangeText={setToLocation}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Stops, separated by commas (optional)"
-                placeholderTextColor="#9ca3af"
-                value={stopsText}
-                onChangeText={setStopsText}
-              />
+              <View style={styles.autocompleteWrap}>
+                <PlaceAutocomplete
+                  value={fromPlace}
+                  onChange={setFromPlace}
+                  placeholder="From (e.g. Civil Lines)"
+                  allowNew
+                />
+              </View>
+              <View style={styles.autocompleteWrap}>
+                <PlaceAutocomplete
+                  value={toPlace}
+                  onChange={setToPlace}
+                  placeholder="To (e.g. Naini)"
+                  allowNew
+                />
+              </View>
+
+              {stops.map((stop, i) => (
+                <View key={stop.key} style={styles.stopRow}>
+                  <View style={styles.stopAutocompleteWrap}>
+                    <PlaceAutocomplete
+                      value={stop.place}
+                      onChange={(place) => updateStopRow(stop.key, place)}
+                      placeholder={`Stop ${i + 1}`}
+                      allowNew
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={styles.removeStopButton}
+                    onPress={() => removeStopRow(stop.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.removeStopText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <TouchableOpacity style={styles.addStopButton} onPress={addStopRow} activeOpacity={0.7}>
+                <Text style={styles.addStopText}>+ Add a stop</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -446,6 +486,20 @@ const styles = StyleSheet.create({
   routeToggleText: { color: "#2563eb", fontSize: 13, fontWeight: "600" },
   routeFields: { marginBottom: 4 },
   routeHint: { fontSize: 12, color: "#64748b", marginBottom: 10, lineHeight: 17 },
+  autocompleteWrap: { marginBottom: 12 },
+  stopRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+  stopAutocompleteWrap: { flex: 1 },
+  removeStopButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#fef2f2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeStopText: { color: "#dc2626", fontSize: 14, fontWeight: "700" },
+  addStopButton: { marginBottom: 4 },
+  addStopText: { color: "#2563eb", fontSize: 13, fontWeight: "600" },
   addButton: {
     backgroundColor: "#16a34a",
     borderRadius: 10,
