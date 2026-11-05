@@ -2,7 +2,7 @@ import * as Location from "expo-location";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { MapStyleElement, MapType, Marker, Region } from "react-native-maps";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { vehicleApi } from "../api/endpoints";
 import { useTrackingHub } from "../api/useTrackingHub";
 import LogoutConfirmModal from "../components/LogoutConfirmModal";
@@ -41,6 +41,7 @@ const DEFAULT_REGION: Region = {
 
 export default function PassengerScreen({ navigation }: any) {
   const { name, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
   const [vehicles, setVehicles] = useState<Record<string, VehicleWithLocation>>({});
   const [filter, setFilter] = useState<VehicleType | "All">("All");
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
@@ -287,7 +288,11 @@ export default function PassengerScreen({ navigation }: any) {
           activeOpacity={1}
           onPress={() => setListOpen(false)}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.sheetCard} onPress={() => {}}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={[styles.sheetCard, { paddingBottom: Math.max(insets.bottom, 16) }]}
+            onPress={() => {}}
+          >
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>
               {markers.length} vehicle{markers.length === 1 ? "" : "s"} nearby
