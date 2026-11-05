@@ -105,10 +105,9 @@ export default function LoginScreen({ navigation }: any) {
             onPress={() => navigation.navigate("PublicSearch")}
             activeOpacity={0.85}
           >
-            <Text style={styles.searchLinkIcon}>🔍</Text>
+            <Text style={styles.searchLinkIcon}>🚌</Text>
             <View style={styles.searchLinkTextWrap}>
               <Text style={styles.searchLinkTitle}>Track a vehicle</Text>
-              <Text style={styles.searchLinkSubtitle}>No account needed</Text>
             </View>
             <Text style={styles.searchLinkArrow}>→</Text>
           </TouchableOpacity>
@@ -191,6 +190,5 @@ const styles = StyleSheet.create({
   searchLinkIcon: { fontSize: 24, marginRight: 12 },
   searchLinkTextWrap: { flex: 1 },
   searchLinkTitle: { color: "#1e3a8a", fontWeight: "700", fontSize: 14 },
-  searchLinkSubtitle: { color: "#3b5998", fontSize: 12, marginTop: 2 },
   searchLinkArrow: { color: "#2563eb", fontSize: 18, fontWeight: "700", marginLeft: 8 },
 });
