@@ -15,6 +15,17 @@ export function setLocationTaskParams(params: TaskParams | null) {
   currentParams = params;
 }
 
+// Tracked so the Driver screen can warn "location isn't reaching the server"
+// instead of silently looking fine while postLocation keeps failing (e.g. a
+// network drop) — without this, the only trace of a failed send was a
+// console.warn no one but a developer would ever see.
+let lastSuccessfulPingAt: number | null = null;
+let lastPingError: string | null = null;
+
+export function getLocationTaskHealth() {
+  return { lastSuccessfulPingAt, lastPingError };
+}
+
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   if (error) {
     console.warn("Location task error:", error);
@@ -36,13 +47,18 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       latest.coords.heading,
       latest.coords.accuracy
     );
+    lastSuccessfulPingAt = Date.now();
+    lastPingError = null;
   } catch (err) {
     console.warn("Failed to post background location:", err);
+    lastPingError = err instanceof Error ? err.message : String(err);
   }
 });
 
 export async function startBackgroundTracking(token: string, vehicleId: string, intervalMs: number) {
   setLocationTaskParams({ token, vehicleId });
+  lastSuccessfulPingAt = null;
+  lastPingError = null;
 
   const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
   if (alreadyStarted) {

@@ -18,7 +18,7 @@ import { vehicleApi } from "../api/endpoints";
 import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import PlaceAutocomplete from "../components/PlaceAutocomplete";
 import { useAuth } from "../context/AuthContext";
-import { startBackgroundTracking, stopBackgroundTracking } from "../tracking/locationTask";
+import { getLocationTaskHealth, startBackgroundTracking, stopBackgroundTracking } from "../tracking/locationTask";
 import { Place, Vehicle, VehicleType } from "../types";
 
 const VEHICLE_TYPES: VehicleType[] = ["Bus", "Auto", "Taxi", "Bike", "Truck", "Ambulance", "Other"];
@@ -41,6 +41,7 @@ export default function DriverScreen() {
   const [tracking, setTracking] = useState(false);
   const [adding, setAdding] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [locationStale, setLocationStale] = useState(false);
 
   // Mirrors tracking/activeVehicleId/token for the unmount cleanup below, which
   // runs in a closure captured once on mount and would otherwise only ever see
@@ -67,6 +68,25 @@ export default function DriverScreen() {
       }
     };
   }, []);
+
+  // While tracking, surface it when location pings stop actually reaching
+  // the server (network drop, server unreachable) — otherwise the driver
+  // has no way to know passengers have gone dark on them, since the app UI
+  // itself keeps looking normal (postLocation failures are only logged).
+  useEffect(() => {
+    if (!tracking) {
+      setLocationStale(false);
+      return;
+    }
+    const STALE_AFTER_MS = 30000;
+    const trackingStartedAt = Date.now();
+    const checkInterval = setInterval(() => {
+      const { lastSuccessfulPingAt } = getLocationTaskHealth();
+      const lastSignalAt = lastSuccessfulPingAt ?? trackingStartedAt;
+      setLocationStale(Date.now() - lastSignalAt > STALE_AFTER_MS);
+    }, 5000);
+    return () => clearInterval(checkInterval);
+  }, [tracking]);
 
   async function loadVehicles() {
     if (!token) return;
@@ -253,6 +273,15 @@ export default function DriverScreen() {
           </Text>
         </View>
       </LinearGradient>
+
+      {tracking && locationStale && (
+        <View style={styles.staleWarning}>
+          <Text style={styles.staleWarningIcon}>⚠️</Text>
+          <Text style={styles.staleWarningText}>
+            Location isn't reaching the server — passengers may not see you moving. Check your internet connection.
+          </Text>
+        </View>
+      )}
 
       {!tracking && (
         <View style={styles.addCard}>
@@ -473,6 +502,20 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.4)" },
   statusDotLive: { backgroundColor: "#4ade80" },
   statusText: { color: "#fff", fontSize: 13, fontWeight: "500" },
+  staleWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fef3c7",
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  staleWarningIcon: { fontSize: 16 },
+  staleWarningText: { flex: 1, color: "#92400e", fontSize: 12, lineHeight: 17, fontWeight: "500" },
   addCard: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
