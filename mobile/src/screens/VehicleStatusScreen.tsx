@@ -194,7 +194,7 @@ export default function VehicleStatusScreen({ route, navigation }: any) {
   })();
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right", "bottom"]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backIcon}>
           <Text style={styles.backIconText}>←</Text>
