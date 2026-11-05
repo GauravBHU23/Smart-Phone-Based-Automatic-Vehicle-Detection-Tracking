@@ -111,8 +111,18 @@ export default function VehicleStatusScreen({ route, navigation }: any) {
         setWatching(false);
       } else {
         await vehicleApi.watch(token, vehicleId);
-        const granted = await registerForPushNotifications(token);
         setWatching(true);
+
+        // Push registration is best-effort — the watch itself already
+        // succeeded, so a push setup failure (network, service outage)
+        // shouldn't be reported as "could not update alert".
+        let granted = false;
+        try {
+          granted = await registerForPushNotifications(token);
+        } catch (pushErr) {
+          console.warn("Push notification registration failed:", pushErr);
+        }
+
         Alert.alert(
           "You're set",
           granted

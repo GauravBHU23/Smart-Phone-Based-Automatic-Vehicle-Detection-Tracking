@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 import { VehicleType, VehicleWithLocation } from "../types";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE } from "./mapStyles";
 
-const VEHICLE_TYPES: (VehicleType | "All")[] = ["All", "Bus", "Auto", "Taxi", "Bike"];
+const VEHICLE_TYPES: (VehicleType | "All")[] = ["All", "Bus", "Auto", "Taxi", "Bike", "Truck", "Ambulance", "Other"];
 
 const VEHICLE_MARKER_ICON: Record<string, string> = {
   Bus: "🚌",
@@ -68,6 +68,15 @@ export default function PassengerScreen({ navigation }: any) {
 
   useEffect(() => {
     loadActiveVehicles();
+  }, [filter]);
+
+  // Safety-net polling: SignalR delivers updates in real time when
+  // connected, but if the socket drops (background, network blip) the
+  // list would otherwise go stale silently. This guarantees it's never
+  // more than 15s out of date even without a live connection.
+  useEffect(() => {
+    const interval = setInterval(loadActiveVehicles, 15000);
+    return () => clearInterval(interval);
   }, [filter]);
 
   async function loadActiveVehicles() {
