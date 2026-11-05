@@ -213,7 +213,10 @@ export default function VehicleStatusScreen({ route, navigation }: any) {
           {togglingWatch ? (
             <ActivityIndicator size="small" color={watching ? "#fff" : "#2563eb"} />
           ) : (
-            <Text style={[styles.watchButtonText, watching && styles.watchButtonTextActive]}>
+            <Text
+              style={[styles.watchButtonText, watching && styles.watchButtonTextActive]}
+              numberOfLines={1}
+            >
               {watching ? "🔔 Alerts on" : "🔔 Get alerts"}
             </Text>
           )}
@@ -362,7 +365,7 @@ const styles = StyleSheet.create({
   },
   backIcon: { padding: 6, marginRight: 8 },
   backIconText: { fontSize: 22, color: "#1e293b" },
-  headerCenter: { flex: 1 },
+  headerCenter: { flex: 1, marginRight: 8 },
   regNumber: { fontSize: 18, fontWeight: "700", color: "#1e293b" },
   vehicleTypeLabel: { fontSize: 13, color: "#64748b", marginTop: 2 },
   watchButton: {
@@ -371,11 +374,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    minWidth: 100,
+    minHeight: 32,
     alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
   watchButtonActive: { backgroundColor: "#2563eb" },
-  watchButtonText: { color: "#2563eb", fontSize: 12, fontWeight: "600" },
+  watchButtonText: { color: "#2563eb", fontSize: 12, fontWeight: "700" },
   watchButtonTextActive: { color: "#fff" },
   scrollContent: { padding: 16, paddingBottom: 32 },
   statusBanner: {
