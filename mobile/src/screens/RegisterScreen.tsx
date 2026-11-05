@@ -41,10 +41,17 @@ export default function RegisterScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create Account</Text>
-      <TextInput style={styles.input} placeholder="Name" value={name} onChangeText={setName} />
+      <TextInput
+        style={styles.input}
+        placeholder="Name"
+        placeholderTextColor="#888"
+        value={name}
+        onChangeText={setName}
+      />
       <TextInput
         style={styles.input}
         placeholder="Phone number"
+        placeholderTextColor="#888"
         keyboardType="phone-pad"
         value={phone}
         onChangeText={setPhone}
@@ -53,6 +60,7 @@ export default function RegisterScreen({ navigation }: any) {
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#888"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -90,6 +98,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 14,
     fontSize: 16,
+    color: "#111",
   },
   roleRow: { flexDirection: "row", marginBottom: 14, gap: 10 },
   roleButton: {
