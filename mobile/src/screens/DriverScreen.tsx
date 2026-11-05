@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -42,10 +42,29 @@ export default function DriverScreen() {
   const [adding, setAdding] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
+  // Mirrors tracking/activeVehicleId/token for the unmount cleanup below, which
+  // runs in a closure captured once on mount and would otherwise only ever see
+  // their initial (empty) values, never the latest ones.
+  const trackingStateRef = useRef({ tracking, activeVehicleId, token });
+  trackingStateRef.current = { tracking, activeVehicleId, token };
+
   useEffect(() => {
     loadVehicles();
     return () => {
+      // If the screen unmounts (navigation, app reload) while live tracking
+      // is on, stopping only the local GPS task would leave the backend
+      // thinking this vehicle is still active — it would keep showing as
+      // "live" to passengers with a frozen last-known position, since no
+      // further location pings would ever arrive. Tell the backend too, so
+      // the vehicle is correctly marked not-active the moment tracking
+      // actually stops, not left stale.
       stopBackgroundTracking();
+      const { tracking: wasTracking, activeVehicleId: vehicleId, token: authToken } = trackingStateRef.current;
+      if (wasTracking && vehicleId && authToken) {
+        vehicleApi.stopTracking(authToken, vehicleId).catch((err) => {
+          console.warn("Failed to stop tracking on unmount:", err);
+        });
+      }
     };
   }, []);
 

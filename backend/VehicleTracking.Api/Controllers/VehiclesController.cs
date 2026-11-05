@@ -270,6 +270,11 @@ public class VehiclesController : ControllerBase
             .Select(s => new StopDto(s.Name, s.Latitude, s.Longitude, reachedStopIds.Contains(s.Id)))
             .ToList();
 
+        // Same staleness guard as GetActiveVehicles: IsActive alone doesn't
+        // mean a vehicle is really live if its driver's app stopped sending
+        // pings without ever calling /stop (crash, killed app, lost network).
+        var isReallyActive = vehicle.IsActive && lastPing is not null && lastPing.RecordedAt >= DateTime.UtcNow - ActiveStalenessThreshold;
+
         return new VehicleStatusResponse(
             vehicle.Id,
             vehicle.RegistrationNumber,
@@ -280,13 +285,13 @@ public class VehiclesController : ControllerBase
             vehicle.DestinationLatitude,
             vehicle.DestinationLongitude,
             stopDtos,
-            vehicle.IsActive,
+            isReallyActive,
             lastPing?.Latitude,
             lastPing?.Longitude,
             lastPing?.SpeedKmh,
             lastPing?.RecordedAt,
-            vehicle.IsActive ? trip?.StartedAt : null,
-            vehicle.IsActive && trip is not null ? Math.Round(distanceCoveredKm, 2) : null
+            isReallyActive ? trip?.StartedAt : null,
+            isReallyActive && trip is not null ? Math.Round(distanceCoveredKm, 2) : null
         );
     }
 
@@ -492,10 +497,21 @@ public class VehiclesController : ControllerBase
 
     private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180;
 
+    // A vehicle whose driver's app was killed, crashed, or lost connectivity
+    // without ever calling /stop can stay IsActive=true indefinitely with no
+    // new pings arriving — showing it as "live" would freeze a stale marker
+    // on every passenger's map forever. Treat anything with no ping in the
+    // last 2 minutes (well beyond the 5s driver ping interval) as effectively
+    // stopped for display purposes, even though the DB row hasn't been
+    // explicitly stopped.
+    private static readonly TimeSpan ActiveStalenessThreshold = TimeSpan.FromMinutes(2);
+
     [HttpGet("active")]
     [AllowAnonymous]
     public async Task<ActionResult<List<VehicleWithLocationResponse>>> GetActiveVehicles([FromQuery] VehicleType? type)
     {
+        var staleCutoff = DateTime.UtcNow - ActiveStalenessThreshold;
+
         var query = _db.Vehicles.Where(v => v.IsActive);
         if (type.HasValue) query = query.Where(v => v.Type == type);
 
@@ -509,6 +525,7 @@ public class VehiclesController : ControllerBase
                 v.ToLocation,
                 LastPing = v.LocationPings.OrderByDescending(p => p.RecordedAt).FirstOrDefault()
             })
+            .Where(v => v.LastPing != null && v.LastPing.RecordedAt >= staleCutoff)
             .ToListAsync();
 
         var result = vehicles.Select(v => new VehicleWithLocationResponse(
