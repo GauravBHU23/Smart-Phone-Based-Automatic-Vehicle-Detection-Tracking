@@ -30,10 +30,21 @@ export function useTrackingHub(handlers: TrackingHubHandlers) {
       handlersRef.current.onVehicleReachedDestination?.(vehicleId)
     );
 
+    function joinPassengers() {
+      connection.invoke("JoinPassengers").catch((err) => console.warn("Failed to join passengers group:", err));
+    }
+
     connection
       .start()
-      .then(() => connection.invoke("JoinPassengers"))
+      .then(joinPassengers)
       .catch((err) => console.warn("SignalR connection failed:", err));
+
+    // Automatic reconnect gets a brand new connection ID on the server, so
+    // group membership from before the drop is gone — without rejoining
+    // here, a transient network blip (WiFi/cellular handoff, brief signal
+    // loss) silently stops delivering any further broadcasts even though
+    // the connection looks healthy again.
+    connection.onreconnected(joinPassengers);
 
     connectionRef.current = connection;
 

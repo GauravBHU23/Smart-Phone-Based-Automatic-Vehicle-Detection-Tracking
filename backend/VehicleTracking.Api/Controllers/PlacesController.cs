@@ -19,7 +19,7 @@ public class PlacesController : ControllerBase
 
     [HttpGet("search")]
     [AllowAnonymous]
-    public async Task<ActionResult<List<PlaceDto>>> Search([FromQuery] string q)
+    public async Task<ActionResult<List<PlaceDto>>> Search([FromQuery] string? q)
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<PlaceDto>());
 
