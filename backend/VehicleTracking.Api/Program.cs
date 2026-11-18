@@ -92,11 +92,11 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Kept available outside Development too: it's read-only API documentation,
+// not an admin surface, and having it reachable on the deployed Render URL
+// is the simplest way to health-check a fresh deploy.
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
@@ -115,6 +115,15 @@ app.MapHub<TrackingHub>("/hubs/tracking");
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // No deployment step currently runs `dotnet ef database update` against
+    // the target database — a fresh cloud Postgres (e.g. on Render) has no
+    // schema at all until this runs, and the admin-seed check just below
+    // would otherwise throw against a database with no Users table.
+    // Idempotent: EF Core tracks applied migrations, so this is a no-op on
+    // every restart once the schema is current.
+    await db.Database.MigrateAsync();
+
     var adminPhone = app.Configuration["AdminSeed:Phone"];
     var adminPassword = app.Configuration["AdminSeed:Password"];
 
