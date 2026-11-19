@@ -159,7 +159,7 @@ export default function PassengerMapPage() {
   );
 
   return (
-    <div className="flex h-screen flex-col bg-white lg:flex-row-reverse">
+    <div className="flex h-[calc(100vh-2.5rem)] flex-col bg-white lg:flex-row-reverse">
       <div className="hidden w-[360px] flex-shrink-0 flex-col border-l border-slate-200 bg-white lg:flex">
         <div className="border-b border-slate-100 px-5 pb-4 pt-6">
           <div className="mb-3 flex items-center justify-between">

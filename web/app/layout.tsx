@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import SiteHeader from "../components/SiteHeader";
 import { AuthProvider } from "../lib/auth/AuthContext";
 import "./globals.css";
 
@@ -16,7 +17,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <SiteHeader />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
