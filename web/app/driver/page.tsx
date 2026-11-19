@@ -351,23 +351,13 @@ export default function DriverPage() {
           <div className="mb-4 flex items-start justify-between">
             <div className="flex items-center gap-3">
               {token && (
-                <div className="flex items-center gap-2">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15">
-                    {profilePhotoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={profilePhotoUrl} alt={name ?? "Profile"} className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-lg">👤</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setMenuOpen(true)}
-                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/15 text-lg text-white transition hover:bg-white/25"
-                    aria-label="Open menu"
-                  >
-                    ☰
-                  </button>
-                </div>
+                <button
+                  onClick={() => setMenuOpen(true)}
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/15 text-lg text-white transition hover:bg-white/25"
+                  aria-label="Open menu"
+                >
+                  ☰
+                </button>
               )}
               <div>
                 <p className="text-[13px] text-white/75">{token ? "Welcome back" : "Logged out"}</p>

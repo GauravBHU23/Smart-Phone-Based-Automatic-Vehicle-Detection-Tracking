@@ -368,13 +368,6 @@ export default function DriverScreen() {
       <LinearGradient colors={["#1e3a8a", "#2563eb"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerTopLeft}>
-            <View style={styles.avatarButton}>
-              {profilePhotoUrl ? (
-                <Image source={{ uri: profilePhotoUrl }} style={styles.avatarImage} />
-              ) : (
-                <Text style={styles.avatarIcon}>👤</Text>
-              )}
-            </View>
             <TouchableOpacity style={styles.menuButton} onPress={() => setMenuOpen(true)} activeOpacity={0.7}>
               <Text style={styles.menuButtonIcon}>☰</Text>
             </TouchableOpacity>
@@ -703,17 +696,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerTopLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatarButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
   avatarImage: { width: "100%", height: "100%" },
-  avatarIcon: { fontSize: 20 },
   menuButton: {
     width: 36,
     height: 36,
