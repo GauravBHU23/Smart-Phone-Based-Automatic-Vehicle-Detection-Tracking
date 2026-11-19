@@ -41,6 +41,8 @@ public class BookingsController : ControllerBase
         b.Status,
         b.FromLocation,
         b.ToLocation,
+        b.FromLatitude,
+        b.FromLongitude,
         b.Note,
         b.CreatedAt,
         b.RespondedAt

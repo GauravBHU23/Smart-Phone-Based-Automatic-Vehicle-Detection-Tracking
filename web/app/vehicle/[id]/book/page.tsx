@@ -49,6 +49,8 @@ export default function BookVehiclePage() {
       const booking = await vehicleApi.createBooking(token, vehicleId, {
         fromLocation: fromPlace?.name.trim() || undefined,
         toLocation: toPlace?.name.trim() || undefined,
+        fromLatitude: fromPlace?.latitude ?? undefined,
+        fromLongitude: fromPlace?.longitude ?? undefined,
         note: note.trim() || undefined,
       });
       if (booking.status === "Pending") showToast("Ride request sent!", "success");

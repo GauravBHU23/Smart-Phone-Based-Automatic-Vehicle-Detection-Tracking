@@ -39,6 +39,8 @@ export default function BookVehicleScreen({ route, navigation }: any) {
       const booking = await vehicleApi.createBooking(token, vehicleId, {
         fromLocation: fromPlace?.name.trim() || undefined,
         toLocation: toPlace?.name.trim() || undefined,
+        fromLatitude: fromPlace?.latitude ?? undefined,
+        fromLongitude: fromPlace?.longitude ?? undefined,
         note: note.trim() || undefined,
       });
       navigation.replace("WaitingForDriver", { bookingId: booking.id });

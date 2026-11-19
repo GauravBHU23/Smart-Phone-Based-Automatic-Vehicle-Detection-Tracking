@@ -122,11 +122,17 @@ export const vehicleApi = {
   createBooking: (
     token: string,
     vehicleId: string,
-    options: { fromLocation?: string; toLocation?: string; note?: string } = {}
+    options: { fromLocation?: string; toLocation?: string; fromLatitude?: number; fromLongitude?: number; note?: string } = {}
   ) =>
     api.post<Booking>(
       `/api/vehicles/${vehicleId}/bookings`,
-      { fromLocation: options.fromLocation, toLocation: options.toLocation, note: options.note },
+      {
+        fromLocation: options.fromLocation,
+        toLocation: options.toLocation,
+        fromLatitude: options.fromLatitude,
+        fromLongitude: options.fromLongitude,
+        note: options.note,
+      },
       token
     ),
 };

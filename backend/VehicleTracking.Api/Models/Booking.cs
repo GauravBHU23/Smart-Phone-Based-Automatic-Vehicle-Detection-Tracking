@@ -23,6 +23,8 @@ public class Booking
 
     public string? FromLocation { get; set; }
     public string? ToLocation { get; set; }
+    public double? FromLatitude { get; set; }
+    public double? FromLongitude { get; set; }
     public string? Note { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

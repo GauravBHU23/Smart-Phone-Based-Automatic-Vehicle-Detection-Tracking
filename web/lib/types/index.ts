@@ -161,6 +161,8 @@ export interface Booking {
   status: BookingStatus;
   fromLocation: string | null;
   toLocation: string | null;
+  fromLatitude: number | null;
+  fromLongitude: number | null;
   note: string | null;
   createdAt: string;
   respondedAt: string | null;

@@ -383,6 +383,8 @@ public class VehiclesController : ControllerBase
         b.Status,
         b.FromLocation,
         b.ToLocation,
+        b.FromLatitude,
+        b.FromLongitude,
         b.Note,
         b.CreatedAt,
         b.RespondedAt
@@ -402,6 +404,8 @@ public class VehiclesController : ControllerBase
             PassengerId = CurrentUserId,
             FromLocation = request.FromLocation,
             ToLocation = request.ToLocation,
+            FromLatitude = request.FromLatitude,
+            FromLongitude = request.FromLongitude,
             Note = request.Note
         };
 

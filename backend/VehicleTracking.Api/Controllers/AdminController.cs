@@ -150,6 +150,8 @@ public class AdminController : ControllerBase
         b.Status,
         b.FromLocation,
         b.ToLocation,
+        b.FromLatitude,
+        b.FromLongitude,
         b.Note,
         b.CreatedAt,
         b.RespondedAt

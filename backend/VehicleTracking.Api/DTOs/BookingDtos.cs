@@ -2,7 +2,7 @@ using VehicleTracking.Api.Models;
 
 namespace VehicleTracking.Api.DTOs;
 
-public record CreateBookingRequest(string? FromLocation, string? ToLocation, string? Note);
+public record CreateBookingRequest(string? FromLocation, string? ToLocation, double? FromLatitude, double? FromLongitude, string? Note);
 
 public record BookingResponse(
     Guid Id,
@@ -16,6 +16,8 @@ public record BookingResponse(
     BookingStatus Status,
     string? FromLocation,
     string? ToLocation,
+    double? FromLatitude,
+    double? FromLongitude,
     string? Note,
     DateTime CreatedAt,
     DateTime? RespondedAt

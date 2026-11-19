@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
+import IncomingBookingPopup from "../components/IncomingBookingPopup";
 import AdminScreen from "../screens/AdminScreen";
 import BookVehicleScreen from "../screens/BookVehicleScreen";
 import EditVehicleScreen from "../screens/EditVehicleScreen";
@@ -57,6 +58,10 @@ export default function RootNavigator() {
           </>
         )}
       </Stack.Navigator>
+      {/* Overlays every screen in the Driver stack above, regardless of
+          which one is currently focused — matches the web app's layout.tsx
+          mounting its popup once at the root for the same reason. */}
+      {role === "Driver" && <IncomingBookingPopup />}
     </NavigationContainer>
   );
 }

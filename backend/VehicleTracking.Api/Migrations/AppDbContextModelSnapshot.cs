@@ -31,8 +31,14 @@ namespace VehicleTracking.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<double?>("FromLatitude")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("FromLocation")
                         .HasColumnType("text");
+
+                    b.Property<double?>("FromLongitude")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("Note")
                         .HasColumnType("text");
