@@ -216,7 +216,7 @@ export default function SearchPage() {
                     placeholder="From (e.g. Civil Lines)"
                     bare
                   />
-                  <div className="h-px bg-slate-100" />
+                  <div className="my-1 h-px bg-slate-100" />
                   <PlaceAutocomplete
                     value={toPlace}
                     onChange={(place) => {
