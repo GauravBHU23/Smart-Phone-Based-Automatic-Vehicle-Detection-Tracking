@@ -51,11 +51,8 @@ export default function BookVehiclePage() {
         toLocation: toPlace?.name.trim() || undefined,
         note: note.trim() || undefined,
       });
-      showToast(
-        booking.status === "Pending" ? "Ride request sent!" : "You already have a pending request on this vehicle",
-        booking.status === "Pending" ? "success" : "info"
-      );
-      router.push("/passenger/bookings");
+      if (booking.status === "Pending") showToast("Ride request sent!", "success");
+      router.push(`/booking/${booking.id}/waiting`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         showToast("You already have a pending request on this vehicle", "info");

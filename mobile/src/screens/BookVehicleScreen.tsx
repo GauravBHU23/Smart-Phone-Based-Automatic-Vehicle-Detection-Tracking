@@ -41,13 +41,7 @@ export default function BookVehicleScreen({ route, navigation }: any) {
         toLocation: toPlace?.name.trim() || undefined,
         note: note.trim() || undefined,
       });
-      Alert.alert(
-        booking.status === "Pending" ? "Request sent" : "Request already pending",
-        booking.status === "Pending"
-          ? "We've sent your ride request to the driver. You'll be notified when they respond."
-          : "You already have a pending request on this vehicle.",
-        [{ text: "OK", onPress: () => navigation.navigate("MyBookings") }]
-      );
+      navigation.replace("WaitingForDriver", { bookingId: booking.id });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         Alert.alert("Request already pending", "You already have a pending request on this vehicle.", [

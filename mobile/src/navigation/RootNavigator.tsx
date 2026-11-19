@@ -11,6 +11,7 @@ import RegisterScreen from "../screens/RegisterScreen";
 import DriverScreen from "../screens/DriverScreen";
 import SearchScreen from "../screens/SearchScreen";
 import VehicleStatusScreen from "../screens/VehicleStatusScreen";
+import WaitingForDriverScreen from "../screens/WaitingForDriverScreen";
 import PassengerTabs from "./PassengerTabs";
 import { navigationRef } from "./navigationRef";
 
@@ -50,6 +51,7 @@ export default function RootNavigator() {
             <Stack.Screen name="PassengerTabs" component={PassengerTabs} />
             <Stack.Screen name="VehicleStatus" component={VehicleStatusScreen} />
             <Stack.Screen name="BookVehicle" component={BookVehicleScreen} />
+            <Stack.Screen name="WaitingForDriver" component={WaitingForDriverScreen} />
           </>
         )}
       </Stack.Navigator>
