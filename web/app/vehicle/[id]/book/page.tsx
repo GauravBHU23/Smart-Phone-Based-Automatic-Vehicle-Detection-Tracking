@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import PlaceAutocomplete from "../../../../components/PlaceAutocomplete";
 import Spinner from "../../../../components/Spinner";
 import { ApiError } from "../../../../lib/api/client";
 import { vehicleApi } from "../../../../lib/api/endpoints";
 import { useAuth } from "../../../../lib/auth/AuthContext";
 import { useToast } from "../../../../lib/toast/ToastContext";
-import { VehicleStatus } from "../../../../lib/types";
+import { PlaceSelection, VehicleStatus } from "../../../../lib/types";
 
 export default function BookVehiclePage() {
   const { id: vehicleId } = useParams<{ id: string }>();
@@ -17,8 +18,8 @@ export default function BookVehiclePage() {
   const { showToast } = useToast();
   const [status, setStatus] = useState<VehicleStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
-  const [fromLocation, setFromLocation] = useState("");
-  const [toLocation, setToLocation] = useState("");
+  const [fromPlace, setFromPlace] = useState<PlaceSelection | null>(null);
+  const [toPlace, setToPlace] = useState<PlaceSelection | null>(null);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,8 +32,11 @@ export default function BookVehiclePage() {
       .getStatus(vehicleId)
       .then((data) => {
         setStatus(data);
-        setFromLocation(data.fromLocation ?? "");
-        setToLocation(data.toLocation ?? "");
+        // Pre-fill from the vehicle's own registered route when it has one —
+        // the common case is booking exactly the route the driver already
+        // set, while still letting the passenger edit it.
+        if (data.fromLocation) setFromPlace({ id: null, name: data.fromLocation });
+        if (data.toLocation) setToPlace({ id: null, name: data.toLocation });
       })
       .catch((err) => console.warn(err))
       .finally(() => setLoadingStatus(false));
@@ -43,8 +47,8 @@ export default function BookVehiclePage() {
     setSubmitting(true);
     try {
       const booking = await vehicleApi.createBooking(token, vehicleId, {
-        fromLocation: fromLocation.trim() || undefined,
-        toLocation: toLocation.trim() || undefined,
+        fromLocation: fromPlace?.name.trim() || undefined,
+        toLocation: toPlace?.name.trim() || undefined,
         note: note.trim() || undefined,
       });
       showToast(
@@ -86,22 +90,14 @@ export default function BookVehiclePage() {
 
       <div className="mx-auto max-w-md p-5">
         <label className="mb-1.5 mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500">From</label>
-        <input
-          type="text"
-          placeholder="Pickup location"
-          value={fromLocation}
-          onChange={(e) => setFromLocation(e.target.value)}
-          className="w-full rounded-[10px] border border-slate-200 bg-white p-3.5 text-[15px] text-slate-800 outline-none focus:border-accent"
-        />
+        <div className="rounded-[10px] border border-slate-200 bg-white px-3.5">
+          <PlaceAutocomplete value={fromPlace} onChange={setFromPlace} placeholder="Pickup location" allowNew bare />
+        </div>
 
         <label className="mb-1.5 mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500">To</label>
-        <input
-          type="text"
-          placeholder="Drop-off location"
-          value={toLocation}
-          onChange={(e) => setToLocation(e.target.value)}
-          className="w-full rounded-[10px] border border-slate-200 bg-white p-3.5 text-[15px] text-slate-800 outline-none focus:border-accent"
-        />
+        <div className="rounded-[10px] border border-slate-200 bg-white px-3.5">
+          <PlaceAutocomplete value={toPlace} onChange={setToPlace} placeholder="Drop-off location" allowNew bare />
+        </div>
 
         <label className="mb-1.5 mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500">
           Note (optional)

@@ -14,7 +14,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "../api/client";
 import { vehicleApi } from "../api/endpoints";
+import PlaceAutocomplete from "../components/PlaceAutocomplete";
 import { useAuth } from "../context/AuthContext";
+import { PlaceSelection } from "../types";
 
 export default function BookVehicleScreen({ route, navigation }: any) {
   const {
@@ -25,8 +27,8 @@ export default function BookVehicleScreen({ route, navigation }: any) {
   }: { vehicleId: string; registrationNumber?: string; fromLocation?: string | null; toLocation?: string | null } =
     route.params;
   const { token } = useAuth();
-  const [fromLocation, setFromLocation] = useState(initialFrom ?? "");
-  const [toLocation, setToLocation] = useState(initialTo ?? "");
+  const [fromPlace, setFromPlace] = useState<PlaceSelection | null>(initialFrom ? { id: null, name: initialFrom } : null);
+  const [toPlace, setToPlace] = useState<PlaceSelection | null>(initialTo ? { id: null, name: initialTo } : null);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,8 +37,8 @@ export default function BookVehicleScreen({ route, navigation }: any) {
     setSubmitting(true);
     try {
       const booking = await vehicleApi.createBooking(token, vehicleId, {
-        fromLocation: fromLocation.trim() || undefined,
-        toLocation: toLocation.trim() || undefined,
+        fromLocation: fromPlace?.name.trim() || undefined,
+        toLocation: toPlace?.name.trim() || undefined,
         note: note.trim() || undefined,
       });
       Alert.alert(
@@ -75,22 +77,10 @@ export default function BookVehicleScreen({ route, navigation }: any) {
 
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <Text style={styles.cardLabel}>From</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Pickup location"
-            placeholderTextColor="#9ca3af"
-            value={fromLocation}
-            onChangeText={setFromLocation}
-          />
+          <PlaceAutocomplete value={fromPlace} onChange={setFromPlace} placeholder="Pickup location" allowNew />
 
           <Text style={styles.cardLabel}>To</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Drop-off location"
-            placeholderTextColor="#9ca3af"
-            value={toLocation}
-            onChangeText={setToLocation}
-          />
+          <PlaceAutocomplete value={toPlace} onChange={setToPlace} placeholder="Drop-off location" allowNew />
 
           <Text style={styles.cardLabel}>Note (optional)</Text>
           <TextInput
