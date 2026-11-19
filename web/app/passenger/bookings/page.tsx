@@ -88,7 +88,10 @@ export default function PassengerBookingsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-10">
-      <div className="border-b border-slate-200 bg-white px-5 py-5">
+      <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-5">
+        <Link href="/passenger/map" className="p-1 text-2xl text-slate-800 transition hover:text-accent">
+          ←
+        </Link>
         <p className="text-xl font-extrabold text-slate-800">My Bookings</p>
       </div>
 

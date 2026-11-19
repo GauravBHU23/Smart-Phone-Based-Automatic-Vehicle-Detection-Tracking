@@ -182,6 +182,20 @@ export default function PassengerMapPage() {
               ⋮
             </button>
           </div>
+          <div className="mb-3 flex gap-2">
+            <Link
+              href="/search"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-accent-light py-2 text-[13px] font-bold text-accent transition hover:bg-accent-light/70"
+            >
+              🔍 Search
+            </Link>
+            <Link
+              href="/passenger/bookings"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-accent-light py-2 text-[13px] font-bold text-accent transition hover:bg-accent-light/70"
+            >
+              📋 My Bookings
+            </Link>
+          </div>
           <div className="flex flex-wrap gap-2">
             {VEHICLE_TYPES.map((t) => (
               <button
@@ -217,6 +231,21 @@ export default function PassengerMapPage() {
             >
               ⋮
             </button>
+          </div>
+
+          <div className="mb-2 flex gap-2 px-4">
+            <Link
+              href="/search"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-accent-light py-2 text-[13px] font-bold text-accent"
+            >
+              🔍 Search
+            </Link>
+            <Link
+              href="/passenger/bookings"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-accent-light py-2 text-[13px] font-bold text-accent"
+            >
+              📋 My Bookings
+            </Link>
           </div>
 
           <div className="flex gap-2 overflow-x-auto px-4 pb-1">
@@ -324,16 +353,6 @@ export default function PassengerMapPage() {
                 {mapTheme === m.value && <span className="font-bold text-accent">✓</span>}
               </button>
             ))}
-
-            <div className="my-1 h-px bg-slate-100" />
-            <Link
-              href="/passenger/bookings"
-              onClick={() => setMenuOpen(false)}
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 transition hover:bg-slate-50"
-            >
-              <span className="w-5 text-center text-base">📋</span>
-              <span className="text-[15px] font-semibold text-slate-700">My Bookings</span>
-            </Link>
 
             <div className="my-1 h-px bg-slate-100" />
             <p className="px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-400">Signed in as {name}</p>

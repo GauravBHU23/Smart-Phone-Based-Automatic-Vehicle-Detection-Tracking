@@ -73,6 +73,7 @@ export default function DriverPage() {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const { lastSuccessfulPingAt } = useForegroundLocation(token, activeVehicleId, tracking);
   const [locationStale, setLocationStale] = useState(false);
@@ -133,6 +134,10 @@ export default function DriverPage() {
     try {
       const list = await vehicleApi.myVehicles(token);
       setVehicles(list);
+      // A brand-new driver with no vehicles yet should see the add-vehicle
+      // form immediately; a returning driver with vehicles already
+      // registered should see their list first, not a form pushed above it.
+      if (list.length === 0) setShowAddForm(true);
       const stillActive = list.find((v) => v.isActive);
       if (stillActive) {
         setActiveVehicleId(stillActive.id);
@@ -185,6 +190,7 @@ export default function DriverPage() {
       setToPlace(null);
       setStops([]);
       setShowRouteFields(false);
+      setShowAddForm(false);
       await loadVehicles();
 
       if (destinationUnresolved) {
@@ -331,9 +337,28 @@ export default function DriverPage() {
 
         <div className="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-6 lg:pt-6">
           <div className="lg:order-2 lg:sticky lg:top-6">
-            {!tracking && (
+            {!tracking && !showAddForm && (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="mx-4 -mt-3.5 flex w-[calc(100%-32px)] items-center justify-center rounded-2xl border-2 border-dashed border-accent/40 bg-white py-4 text-[14px] font-bold text-accent shadow-sm transition hover:bg-accent-light lg:mx-0 lg:mt-0 lg:w-full lg:shadow-md"
+              >
+                + Add another vehicle
+              </button>
+            )}
+
+            {!tracking && showAddForm && (
               <div className="mx-4 -mt-3.5 rounded-2xl bg-white p-4 shadow-md lg:mx-0 lg:mt-0 lg:shadow-lg">
-                <p className="mb-2.5 text-[13px] font-bold uppercase tracking-wide text-slate-500">Add a vehicle</p>
+                <div className="mb-2.5 flex items-center justify-between">
+                  <p className="text-[13px] font-bold uppercase tracking-wide text-slate-500">Add a vehicle</p>
+                  {vehicles.length > 0 && (
+                    <button
+                      onClick={() => setShowAddForm(false)}
+                      className="text-[13px] font-semibold text-slate-400 hover:text-slate-600"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   placeholder="Vehicle number (e.g. UP70AB1234)"
