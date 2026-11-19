@@ -99,7 +99,7 @@ export default function IncomingBookingPopup() {
   }
 
   return (
-    <div className="fixed inset-x-4 bottom-4 z-[200] flex justify-center sm:inset-x-auto sm:right-6 sm:bottom-6 sm:justify-end">
+    <div className="fixed inset-x-4 top-14 z-[200] flex justify-center sm:inset-x-auto sm:top-16 sm:right-6 sm:justify-end">
       <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-slate-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

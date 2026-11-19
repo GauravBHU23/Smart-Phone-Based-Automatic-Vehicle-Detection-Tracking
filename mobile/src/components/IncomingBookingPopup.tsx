@@ -1,6 +1,7 @@
 import * as Location from "expo-location";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { bookingApi, vehicleApi } from "../api/endpoints";
 import { useTrackingHub } from "../api/useTrackingHub";
 import { useAuth } from "../context/AuthContext";
@@ -93,7 +94,7 @@ export default function IncomingBookingPopup() {
   }
 
   return (
-    <View style={styles.overlay} pointerEvents="box-none">
+    <SafeAreaView style={styles.overlay} edges={["top"]} pointerEvents="box-none">
       <View style={styles.card}>
         <View style={styles.topRow}>
           <View style={styles.vehicleRow}>
@@ -136,7 +137,7 @@ export default function IncomingBookingPopup() {
 
         {queue.length > 1 && <Text style={styles.moreText}>+{queue.length - 1} more waiting</Text>}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -145,11 +146,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 24,
+    top: 0,
     alignItems: "center",
+    backgroundColor: "transparent",
   },
   card: {
     width: "92%",
+    marginTop: 10,
     backgroundColor: "#fff",
     borderRadius: 18,
     padding: 16,
