@@ -81,7 +81,7 @@ export default function SearchPage() {
   const canSearchByRoute = !!fromPlace?.id && !!toPlace?.id && !loading;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-10 lg:pb-20">
+    <div className="flex min-h-screen flex-col bg-slate-50 pb-10 lg:pb-0">
       <div className="relative pt-8 text-center lg:bg-gradient-to-br lg:from-accent-dark lg:to-accent lg:pb-16 lg:pt-10 lg:text-white">
         {token ? (
           <button
@@ -122,7 +122,7 @@ export default function SearchPage() {
         </p>
       )}
 
-      <div className="mx-auto -mt-0 max-w-md px-5 lg:-mt-10 lg:max-w-2xl">
+      <div className="mx-auto -mt-0 w-full max-w-md px-5 lg:-mt-10 lg:flex lg:max-w-2xl lg:flex-1 lg:flex-col lg:justify-center lg:pb-16">
         <div className="lg:rounded-[22px] lg:bg-white lg:p-8 lg:shadow-xl">
           <div className="mx-auto mb-4 mt-4 flex max-w-md gap-1 rounded-xl bg-slate-100 p-1 lg:mx-0 lg:mt-0 lg:max-w-xs">
             <button
