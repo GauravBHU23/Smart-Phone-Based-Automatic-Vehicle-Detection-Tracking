@@ -368,12 +368,15 @@ export default function DriverScreen() {
       <LinearGradient colors={["#1e3a8a", "#2563eb"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerTopLeft}>
-            <TouchableOpacity style={styles.avatarButton} onPress={() => setMenuOpen(true)} activeOpacity={0.7}>
+            <View style={styles.avatarButton}>
               {profilePhotoUrl ? (
                 <Image source={{ uri: profilePhotoUrl }} style={styles.avatarImage} />
               ) : (
                 <Text style={styles.avatarIcon}>👤</Text>
               )}
+            </View>
+            <TouchableOpacity style={styles.menuButton} onPress={() => setMenuOpen(true)} activeOpacity={0.7}>
+              <Text style={styles.menuButtonIcon}>☰</Text>
             </TouchableOpacity>
             <View>
               <Text style={styles.greeting}>Welcome back</Text>
@@ -383,12 +386,17 @@ export default function DriverScreen() {
         </View>
 
         <View style={styles.statusRow}>
-          <View style={styles.statusPill}>
+          <TouchableOpacity
+            style={styles.statusPill}
+            activeOpacity={activeVehicle ? 0.7 : 1}
+            disabled={!activeVehicle}
+            onPress={() => activeVehicle && navigation.navigate("VehicleStatus", { vehicleId: activeVehicle.id })}
+          >
             <View style={[styles.statusDot, tracking && styles.statusDotLive]} />
             <Text style={styles.statusText}>
               {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
@@ -456,18 +464,19 @@ export default function DriverScreen() {
                 </Text>
               </TouchableOpacity>
 
-              <View style={styles.menuDivider} />
-
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  confirmSignOut();
-                }}
-              >
-                <Text style={[styles.menuItemIcon, { color: "#dc2626" }]}>⏻</Text>
-                <Text style={[styles.menuItemText, { color: "#dc2626" }]}>Log out</Text>
-              </TouchableOpacity>
+              <View style={styles.menuBottomSection}>
+                <View style={styles.menuDivider} />
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    confirmSignOut();
+                  }}
+                >
+                  <Text style={[styles.menuItemIcon, { color: "#dc2626" }]}>⏻</Text>
+                  <Text style={[styles.menuItemText, { color: "#dc2626" }]}>Log out</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -705,6 +714,15 @@ const styles = StyleSheet.create({
   },
   avatarImage: { width: "100%", height: "100%" },
   avatarIcon: { fontSize: 20 },
+  menuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuButtonIcon: { fontSize: 17, color: "#fff" },
   greeting: { color: "rgba(255,255,255,0.75)", fontSize: 13 },
   title: { color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 },
   statusRow: { flexDirection: "column", gap: 8 },
@@ -872,4 +890,5 @@ const styles = StyleSheet.create({
   menuBadge: { backgroundColor: "#2563eb", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   menuBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
   menuDivider: { height: 1, backgroundColor: "#f1f5f9", marginVertical: 8, marginHorizontal: 12 },
+  menuBottomSection: { marginTop: "auto", paddingBottom: 8 },
 });

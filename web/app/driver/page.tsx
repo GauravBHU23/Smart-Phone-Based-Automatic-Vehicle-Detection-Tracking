@@ -351,18 +351,23 @@ export default function DriverPage() {
           <div className="mb-4 flex items-start justify-between">
             <div className="flex items-center gap-3">
               {token && (
-                <button
-                  onClick={() => setMenuOpen(true)}
-                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 transition hover:bg-white/25"
-                  aria-label="Open menu"
-                >
-                  {profilePhotoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={profilePhotoUrl} alt={name ?? "Profile"} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-lg">👤</span>
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15">
+                    {profilePhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={profilePhotoUrl} alt={name ?? "Profile"} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-lg">👤</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setMenuOpen(true)}
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/15 text-lg text-white transition hover:bg-white/25"
+                    aria-label="Open menu"
+                  >
+                    ☰
+                  </button>
+                </div>
               )}
               <div>
                 <p className="text-[13px] text-white/75">{token ? "Welcome back" : "Logged out"}</p>
@@ -370,12 +375,17 @@ export default function DriverPage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5">
+          <Link
+            href={activeVehicle ? `/vehicle/${activeVehicle.id}` : "#"}
+            className={`flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5 transition ${
+              activeVehicle ? "hover:bg-white/20" : "pointer-events-none"
+            }`}
+          >
             <span className={`h-2 w-2 flex-shrink-0 rounded-full ${tracking ? "animate-pulse bg-green-400" : "bg-white/40"}`} />
             <span className="text-[13px] font-medium text-white">
               {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
             </span>
-          </div>
+          </Link>
         </div>
       </div>
 
@@ -647,17 +657,17 @@ export default function DriverPage() {
                 </span>
               </Link>
 
-              <div className="my-2 border-t border-slate-100" />
-
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  setLogoutConfirmOpen(true);
-                }}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold text-red-600 transition hover:bg-red-50"
-              >
-                ⏻ <span>Log out</span>
-              </button>
+              <div className="mt-auto border-t border-slate-100 pt-2">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setLogoutConfirmOpen(true);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold text-red-600 transition hover:bg-red-50"
+                >
+                  ⏻ <span>Log out</span>
+                </button>
+              </div>
             </nav>
           </div>
         </div>
