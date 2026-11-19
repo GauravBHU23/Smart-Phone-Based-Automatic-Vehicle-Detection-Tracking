@@ -16,11 +16,22 @@ import {
   VerificationStatusInfo,
 } from "../types";
 
+type PickedPhoto = { uri: string; name: string; type: string };
+
 export const authApi = {
   register: (name: string, phone: string, password: string, role: UserRole) =>
     api.post<AuthResponse>("/api/auth/register", { name, phone, password, role }),
   login: (phone: string, password: string) =>
     api.post<AuthResponse>("/api/auth/login", { phone, password }),
+  updateProfile: (
+    token: string,
+    data: { name?: string; phone?: string; currentPassword?: string; newPassword?: string }
+  ) => api.put<AuthResponse>("/api/auth/profile", data, token),
+  uploadProfilePhoto: (token: string, photo: PickedPhoto) => {
+    const formData = new FormData();
+    formData.append("photo", { uri: photo.uri, name: photo.name, type: photo.type } as unknown as Blob);
+    return api.postMultipart<AuthResponse>("/api/auth/profile/photo", formData, token);
+  },
 };
 
 export const placeApi = {
@@ -172,8 +183,6 @@ export const adminApi = {
   rejectVerification: (token: string, driverId: string, reason: string) =>
     api.post<void>(`/api/admin/drivers/${driverId}/verification/reject`, { reason }, token),
 };
-
-type PickedPhoto = { uri: string; name: string; type: string };
 
 export const verificationApi = {
   getStatus: (token: string) => api.get<VerificationStatusInfo>("/api/driver/verification/status", token),

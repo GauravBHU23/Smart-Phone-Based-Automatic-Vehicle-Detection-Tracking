@@ -6,7 +6,9 @@ export interface AuthResponse {
   token: string;
   userId: string;
   name: string;
+  phone: string;
   role: UserRole;
+  profilePhotoUrl: string | null;
 }
 
 export interface RouteStop {

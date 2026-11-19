@@ -6,4 +6,6 @@ public record RegisterRequest(string Name, string Phone, string Password, UserRo
 
 public record LoginRequest(string Phone, string Password);
 
-public record AuthResponse(string Token, Guid UserId, string Name, UserRole Role);
+public record UpdateProfileRequest(string? Name, string? Phone, string? CurrentPassword, string? NewPassword);
+
+public record AuthResponse(string Token, Guid UserId, string Name, string Phone, UserRole Role, string? ProfilePhotoUrl);

@@ -21,6 +21,15 @@ export const authApi = {
     api.post<AuthResponse>("/api/auth/register", { name, phone, password, role }),
   login: (phone: string, password: string) =>
     api.post<AuthResponse>("/api/auth/login", { phone, password }),
+  updateProfile: (
+    token: string,
+    data: { name?: string; phone?: string; currentPassword?: string; newPassword?: string }
+  ) => api.put<AuthResponse>("/api/auth/profile", data, token),
+  uploadProfilePhoto: (token: string, photo: File) => {
+    const formData = new FormData();
+    formData.append("photo", photo);
+    return api.postMultipart<AuthResponse>("/api/auth/profile/photo", formData, token);
+  },
 };
 
 export const placeApi = {

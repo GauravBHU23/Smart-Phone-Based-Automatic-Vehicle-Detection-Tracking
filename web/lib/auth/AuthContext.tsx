@@ -7,7 +7,9 @@ interface AuthState {
   token: string | null;
   userId: string | null;
   name: string | null;
+  phone: string | null;
   role: UserRole | null;
+  profilePhotoUrl: string | null;
   isLoading: boolean;
   signIn: (auth: AuthResponse) => void;
   signOut: () => void;
@@ -21,7 +23,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [name, setName] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -32,7 +36,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(parsed.token);
         setUserId(parsed.userId);
         setName(parsed.name);
+        setPhone(parsed.phone);
         setRole(parsed.role);
+        setProfilePhotoUrl(parsed.profilePhotoUrl);
       }
     } catch (err) {
       // Corrupted/incompatible stored session shouldn't hang the app on
@@ -48,7 +54,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(auth.token);
     setUserId(auth.userId);
     setName(auth.name);
+    setPhone(auth.phone);
     setRole(auth.role);
+    setProfilePhotoUrl(auth.profilePhotoUrl);
   }
 
   function signOut() {
@@ -56,11 +64,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUserId(null);
     setName(null);
+    setPhone(null);
     setRole(null);
+    setProfilePhotoUrl(null);
   }
 
   return (
-    <AuthContext.Provider value={{ token, userId, name, role, isLoading, signIn, signOut }}>
+    <AuthContext.Provider value={{ token, userId, name, phone, role, profilePhotoUrl, isLoading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

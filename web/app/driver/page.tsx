@@ -62,7 +62,7 @@ async function resolveCoordinates(place: PlaceSelection | null): Promise<{ latit
 }
 
 export default function DriverPage() {
-  const { token, name, role, isLoading, signOut } = useAuth();
+  const { token, name, role, isLoading, signOut, profilePhotoUrl } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -81,7 +81,6 @@ export default function DriverPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
   const [verificationStatus, setVerificationStatus] = useState<DriverVerificationStatus | null>(null);
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [deleteConfirmVehicle, setDeleteConfirmVehicle] = useState<Vehicle | null>(null);
@@ -126,10 +125,7 @@ export default function DriverPage() {
     if (!token) return;
     verificationApi
       .getStatus(token)
-      .then((status) => {
-        setVerificationStatus(status.status);
-        setProfilePhotoUrl(status.profilePhotoUrl);
-      })
+      .then((status) => setVerificationStatus(status.status))
       .catch((err) => console.warn("Failed to load verification status:", err));
   }, [token]);
 
@@ -633,6 +629,13 @@ export default function DriverPage() {
 
             <nav className="flex flex-1 flex-col gap-1 p-3">
               <Link
+                href="/driver/profile"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                ✏️ <span className="flex-1">Edit profile</span>
+              </Link>
+              <Link
                 href="/driver/bookings"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -659,17 +662,17 @@ export default function DriverPage() {
                 </span>
               </Link>
 
-              <div className="mt-auto border-t border-slate-100 pt-2">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setLogoutConfirmOpen(true);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold text-red-600 transition hover:bg-red-50"
-                >
-                  ⏻ <span>Log out</span>
-                </button>
-              </div>
+              <div className="my-2 border-t border-slate-100" />
+
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  setLogoutConfirmOpen(true);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold text-red-600 transition hover:bg-red-50"
+              >
+                ⏻ <span>Log out</span>
+              </button>
             </nav>
           </div>
         </div>

@@ -33,12 +33,11 @@ const LOCATION_INTERVAL_MS = 5000;
 let nextStopKey = 0;
 
 export default function DriverScreen() {
-  const { token, name, signOut } = useAuth();
+  const { token, name, signOut, profilePhotoUrl } = useAuth();
   const navigation = useNavigation<any>();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
   const [verificationStatus, setVerificationStatus] = useState<DriverVerificationStatus | null>(null);
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [regNumber, setRegNumber] = useState("");
@@ -142,10 +141,7 @@ export default function DriverScreen() {
     if (!token) return;
     verificationApi
       .getStatus(token)
-      .then((status) => {
-        setVerificationStatus(status.status);
-        setProfilePhotoUrl(status.profilePhotoUrl);
-      })
+      .then((status) => setVerificationStatus(status.status))
       .catch((err) => console.warn("Failed to load verification status:", err));
   }, [token]);
 
@@ -430,6 +426,17 @@ export default function DriverScreen() {
             </LinearGradient>
 
             <View style={styles.menuBody}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  navigation.navigate("DriverProfile");
+                }}
+              >
+                <Text style={styles.menuItemIcon}>✏️</Text>
+                <Text style={styles.menuItemText}>Edit profile</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => {
