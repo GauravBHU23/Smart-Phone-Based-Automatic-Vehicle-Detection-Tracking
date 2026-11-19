@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import LogoutConfirmModal from "../../components/LogoutConfirmModal";
+import Spinner from "../../components/Spinner";
 import { adminApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { useToast } from "../../lib/toast/ToastContext";
@@ -187,11 +188,11 @@ export default function AdminPage() {
                       <button
                         onClick={() => setConfirmState({ kind: "driver", item })}
                         disabled={busyId === item.id}
-                        className={`min-w-[90px] flex-shrink-0 rounded-lg px-3.5 py-2 text-xs font-bold text-white transition ${
+                        className={`flex min-w-[90px] flex-shrink-0 items-center justify-center rounded-lg px-3.5 py-2 text-xs font-bold text-white transition ${
                           item.isSuspended ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
                         } disabled:opacity-60`}
                       >
-                        {busyId === item.id ? "…" : item.isSuspended ? "Unsuspend" : "Suspend"}
+                        {busyId === item.id ? <Spinner className="h-3.5 w-3.5 border-2 border-white border-t-transparent" /> : item.isSuspended ? "Unsuspend" : "Suspend"}
                       </button>
                     </div>
                   ))
@@ -215,11 +216,11 @@ export default function AdminPage() {
                       <button
                         onClick={() => setConfirmState({ kind: "vehicle", item })}
                         disabled={busyId === item.id}
-                        className={`min-w-[90px] flex-shrink-0 rounded-lg px-3.5 py-2 text-xs font-bold text-white transition ${
+                        className={`flex min-w-[90px] flex-shrink-0 items-center justify-center rounded-lg px-3.5 py-2 text-xs font-bold text-white transition ${
                           item.isSuspended ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
                         } disabled:opacity-60`}
                       >
-                        {busyId === item.id ? "…" : item.isSuspended ? "Unsuspend" : "Suspend"}
+                        {busyId === item.id ? <Spinner className="h-3.5 w-3.5 border-2 border-white border-t-transparent" /> : item.isSuspended ? "Unsuspend" : "Suspend"}
                       </button>
                     </div>
                   ))}

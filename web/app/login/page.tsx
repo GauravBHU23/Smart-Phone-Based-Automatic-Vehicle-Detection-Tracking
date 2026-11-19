@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Spinner from "../../components/Spinner";
 import { ApiError } from "../../lib/api/client";
 import { authApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
@@ -108,7 +109,14 @@ export default function LoginPage() {
             disabled={!canSubmit}
             className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-[10px] bg-accent text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300"
           >
-            {loading ? "Logging in…" : "Log In"}
+            {loading ? (
+              <>
+                <Spinner />
+                <span className="ml-2">Logging in…</span>
+              </>
+            ) : (
+              "Log In"
+            )}
           </button>
 
           <p className="mt-4 text-center text-sm text-slate-500">

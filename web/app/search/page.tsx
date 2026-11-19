@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import PlaceAutocomplete from "../../components/PlaceAutocomplete";
+import Spinner from "../../components/Spinner";
 import { ApiError } from "../../lib/api/client";
 import { vehicleApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
@@ -160,7 +161,14 @@ export default function SearchPage() {
                 disabled={!canSearchByNumber}
                 className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-accent text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:px-8"
               >
-                {loading ? "Searching…" : "Search"}
+                {loading ? (
+                  <>
+                    <Spinner />
+                    <span className="ml-2">Searching…</span>
+                  </>
+                ) : (
+                  "Search"
+                )}
               </button>
             </div>
           ) : (
@@ -198,7 +206,14 @@ export default function SearchPage() {
                 disabled={!canSearchByRoute}
                 className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-accent text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:px-8"
               >
-                {loading ? "Searching…" : "Find vehicles"}
+                {loading ? (
+                  <>
+                    <Spinner />
+                    <span className="ml-2">Searching…</span>
+                  </>
+                ) : (
+                  "Find vehicles"
+                )}
               </button>
             </div>
           )}

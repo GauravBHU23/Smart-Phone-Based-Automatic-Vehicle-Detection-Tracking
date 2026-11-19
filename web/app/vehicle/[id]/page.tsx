@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import LiveMap, { MapMarkerSpec } from "../../../components/LiveMap";
+import Spinner from "../../../components/Spinner";
 import { vehicleApi } from "../../../lib/api/endpoints";
 import { useTrackingHub } from "../../../lib/api/useTrackingHub";
 import { useAuth } from "../../../lib/auth/AuthContext";
@@ -213,11 +214,17 @@ export default function VehicleStatusPage() {
         <button
           onClick={toggleWatch}
           disabled={togglingWatch}
-          className={`min-h-[32px] flex-shrink-0 rounded-2xl border px-3 py-2 text-xs font-bold transition lg:px-4 lg:py-2.5 lg:text-sm ${
+          className={`flex min-h-[32px] flex-shrink-0 items-center rounded-2xl border px-3 py-2 text-xs font-bold transition lg:px-4 lg:py-2.5 lg:text-sm ${
             watching ? "border-accent bg-accent text-white hover:bg-accent-dark" : "border-accent text-accent hover:bg-accent-light"
           }`}
         >
-          {togglingWatch ? "…" : watching ? "🔔 Alerts on" : "🔔 Get alerts"}
+          {togglingWatch ? (
+            <Spinner className={`h-3.5 w-3.5 border-2 border-t-transparent ${watching ? "border-white" : "border-accent"}`} />
+          ) : watching ? (
+            "🔔 Alerts on"
+          ) : (
+            "🔔 Get alerts"
+          )}
         </button>
       </div>
 

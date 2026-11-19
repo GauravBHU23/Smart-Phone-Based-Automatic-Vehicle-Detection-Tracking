@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import LogoutConfirmModal from "../../components/LogoutConfirmModal";
 import PlaceAutocomplete from "../../components/PlaceAutocomplete";
+import Spinner from "../../components/Spinner";
 import { ApiError } from "../../lib/api/client";
 import { vehicleApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
@@ -66,6 +67,7 @@ export default function DriverPage() {
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
   const [tracking, setTracking] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [trackingActionBusyId, setTrackingActionBusyId] = useState<string | null>(null);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -197,6 +199,7 @@ export default function DriverPage() {
       setNotice("This browser does not support location sharing.");
       return;
     }
+    setTrackingActionBusyId(vehicleId);
     try {
       await vehicleApi.startTracking(token, vehicleId);
       setActiveVehicleId(vehicleId);
@@ -208,11 +211,14 @@ export default function DriverPage() {
       showToast(message, "error");
       setTracking(false);
       setActiveVehicleId(null);
+    } finally {
+      setTrackingActionBusyId(null);
     }
   }
 
   async function stopTracking() {
     if (!token || !activeVehicleId) return;
+    setTrackingActionBusyId(activeVehicleId);
     try {
       await vehicleApi.stopTracking(token, activeVehicleId);
       showToast("Tracking stopped", "info");
@@ -223,6 +229,7 @@ export default function DriverPage() {
     } finally {
       setTracking(false);
       setActiveVehicleId(null);
+      setTrackingActionBusyId(null);
       loadVehicles();
     }
   }
@@ -362,7 +369,14 @@ export default function DriverPage() {
                   disabled={!regNumber || adding}
                   className="mt-2 flex min-h-[46px] w-full items-center justify-center rounded-[10px] bg-green-600 font-bold text-white transition hover:bg-green-700 disabled:bg-slate-300 disabled:hover:bg-slate-300"
                 >
-                  {adding ? "Adding…" : "+ Add Vehicle"}
+                  {adding ? (
+                    <>
+                      <Spinner className="h-4 w-4 border-2 border-white border-t-transparent" />
+                      <span className="ml-2">Adding…</span>
+                    </>
+                  ) : (
+                    "+ Add Vehicle"
+                  )}
                 </button>
               </div>
             )}
@@ -396,17 +410,18 @@ export default function DriverPage() {
                     {isLive ? (
                       <button
                         onClick={stopTracking}
-                        className="flex-shrink-0 rounded-[10px] bg-red-600 px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-red-700"
+                        disabled={trackingActionBusyId === item.id}
+                        className="flex flex-shrink-0 items-center rounded-[10px] bg-red-600 px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-red-700 disabled:opacity-70"
                       >
-                        ■ Stop
+                        {trackingActionBusyId === item.id ? <Spinner /> : "■ Stop"}
                       </button>
                     ) : (
                       <button
                         onClick={() => startTracking(item.id)}
-                        disabled={tracking}
-                        className="flex-shrink-0 rounded-[10px] bg-accent px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300"
+                        disabled={tracking || trackingActionBusyId === item.id}
+                        className="flex flex-shrink-0 items-center rounded-[10px] bg-accent px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300"
                       >
-                        ▶ Start
+                        {trackingActionBusyId === item.id ? <Spinner className="h-4 w-4 border-2 border-white border-t-transparent" /> : "▶ Start"}
                       </button>
                     )}
                   </div>
