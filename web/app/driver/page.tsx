@@ -11,6 +11,7 @@ import { bookingApi, vehicleApi } from "../../lib/api/endpoints";
 import { useTrackingHub } from "../../lib/api/useTrackingHub";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { GOOGLE_MAPS_API_KEY } from "../../lib/mapsConfig";
+import { clearTrackingToken, loadTrackingToken, saveTrackingToken } from "../../lib/tracking/trackingToken";
 import { useForegroundLocation } from "../../lib/tracking/useForegroundLocation";
 import { useToast } from "../../lib/toast/ToastContext";
 import { PlaceSelection, Vehicle, VehicleType } from "../../lib/types";
@@ -80,13 +81,26 @@ export default function DriverPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
   const [showAddForm, setShowAddForm] = useState(false);
+  // Tracking keeps running off its own saved token after logout, the same
+  // way the mobile app's background task does — see trackingToken.ts.
+  const [trackingToken, setTrackingToken] = useState<string | null>(null);
 
-  const { lastSuccessfulPingAt } = useForegroundLocation(token, activeVehicleId, tracking);
+  const { lastSuccessfulPingAt } = useForegroundLocation(trackingToken ?? token, activeVehicleId, tracking);
   const [locationStale, setLocationStale] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && (!token || role !== "Driver")) router.replace("/login");
-  }, [isLoading, token, role, router]);
+    setTrackingToken(loadTrackingToken());
+  }, []);
+
+  // Logging out must never silently kill an in-progress tracking session —
+  // this page's own useForegroundLocation interval only runs while this
+  // component is mounted, so redirecting away on logout would stop GPS
+  // pings immediately, even though the UI (and the driver) believe
+  // tracking survives logout until Stop is explicitly pressed. Only
+  // redirect once there's no active tracking left to protect.
+  useEffect(() => {
+    if (!isLoading && !tracking && (!token || role !== "Driver")) router.replace("/login");
+  }, [isLoading, token, role, tracking, router]);
 
   useEffect(() => {
     if (!token) return;
@@ -232,7 +246,12 @@ export default function DriverPage() {
     setLogoutConfirmOpen(false);
     signOut();
     showToast("Logged out", "info");
-    router.push("/login");
+    // If tracking is active, deliberately stay on this page instead of
+    // navigating to /login — this component unmounting would kill the
+    // GPS-ping interval (useForegroundLocation), silently stopping
+    // tracking despite the logout confirmation promising it wouldn't.
+    // The redirect effect above takes over once Stop is pressed.
+    if (!tracking) router.push("/login");
   }
 
   async function startTracking(vehicleId: string) {
@@ -246,6 +265,8 @@ export default function DriverPage() {
       await vehicleApi.startTracking(token, vehicleId);
       setActiveVehicleId(vehicleId);
       setTracking(true);
+      saveTrackingToken(token);
+      setTrackingToken(token);
       showToast("Tracking started — you're live!", "success");
     } catch (err) {
       const message = err instanceof ApiError ? err.message : String(err);
@@ -259,10 +280,14 @@ export default function DriverPage() {
   }
 
   async function stopTracking() {
-    if (!token || !activeVehicleId) return;
+    // Stop must work even after logout — it uses whichever token is still
+    // available (the tracking-specific one survives logout on purpose; the
+    // auth token covers the normal case where the driver never logged out).
+    const stopToken = trackingToken ?? token;
+    if (!stopToken || !activeVehicleId) return;
     setTrackingActionBusyId(activeVehicleId);
     try {
-      await vehicleApi.stopTracking(token, activeVehicleId);
+      await vehicleApi.stopTracking(stopToken, activeVehicleId);
       showToast("Tracking stopped", "info");
     } catch (err) {
       const message = err instanceof ApiError ? err.message : String(err);
@@ -272,7 +297,10 @@ export default function DriverPage() {
       setTracking(false);
       setActiveVehicleId(null);
       setTrackingActionBusyId(null);
-      loadVehicles();
+      clearTrackingToken();
+      setTrackingToken(null);
+      if (!token) router.push("/login");
+      else loadVehicles();
     }
   }
 
@@ -292,15 +320,17 @@ export default function DriverPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-4 flex items-start justify-between">
             <div>
-              <p className="text-[13px] text-white/75">Welcome back</p>
-              <p className="mt-0.5 text-2xl font-bold text-white lg:text-3xl">{name}</p>
+              <p className="text-[13px] text-white/75">{token ? "Welcome back" : "Logged out"}</p>
+              <p className="mt-0.5 text-2xl font-bold text-white lg:text-3xl">{token ? name : "Still sharing location"}</p>
             </div>
-            <button
-              onClick={() => setLogoutConfirmOpen(true)}
-              className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-white/25"
-            >
-              <span>⏻</span> Log out
-            </button>
+            {token && (
+              <button
+                onClick={() => setLogoutConfirmOpen(true)}
+                className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-white/25"
+              >
+                <span>⏻</span> Log out
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5">
@@ -309,12 +339,14 @@ export default function DriverPage() {
                 {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
               </span>
             </div>
-            <Link
-              href="/driver/bookings"
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20"
-            >
-              📋 {pendingBookingCount > 0 ? `${pendingBookingCount} new` : "Ride requests"}
-            </Link>
+            {token && (
+              <Link
+                href="/driver/bookings"
+                className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20"
+              >
+                📋 {pendingBookingCount > 0 ? `${pendingBookingCount} new` : "Ride requests"}
+              </Link>
+            )}
           </div>
         </div>
       </div>
