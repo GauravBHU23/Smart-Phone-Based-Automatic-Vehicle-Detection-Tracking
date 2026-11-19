@@ -25,7 +25,19 @@ export function useTrackingHub(handlers: TrackingHubHandlers, watchVehicleIds: s
   // a ref lets the join function always see the latest list without
   // recreating the connection.
   const watchVehicleIdsRef = useRef(watchVehicleIds);
-  watchVehicleIdsRef.current = watchVehicleIds;
+
+  const watchVehicleIdsKey = watchVehicleIds.join(",");
+
+  useEffect(() => {
+    const previous = watchVehicleIdsRef.current;
+    const added = watchVehicleIds.filter((id) => !previous.includes(id));
+    watchVehicleIdsRef.current = watchVehicleIds;
+    const connection = connectionRef.current;
+    if (connection && connection.state === signalR.HubConnectionState.Connected) {
+      added.forEach((id) => connection.invoke("WatchVehicle", id).catch((err) => console.warn("Failed to watch vehicle group:", err)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchVehicleIdsKey]);
 
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
