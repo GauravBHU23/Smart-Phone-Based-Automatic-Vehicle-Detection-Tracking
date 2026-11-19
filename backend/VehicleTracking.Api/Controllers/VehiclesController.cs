@@ -103,6 +103,82 @@ public class VehiclesController : ControllerBase
         return Ok(ToVehicleResponse(vehicle));
     }
 
+    [HttpPut("{vehicleId:guid}")]
+    [Authorize(Roles = "Driver")]
+    public async Task<ActionResult<VehicleResponse>> UpdateVehicle(Guid vehicleId, UpdateVehicleRequest request)
+    {
+        var vehicle = await _db.Vehicles.Include(v => v.Stops).SingleOrDefaultAsync(v => v.Id == vehicleId && v.DriverId == CurrentUserId);
+        if (vehicle is null) return NotFound();
+
+        // Editing mid-trip would silently change what passengers are already
+        // looking at on a live map — the driver must stop first, same
+        // precondition as every other state-changing action in this
+        // controller that's incompatible with an active trip.
+        if (vehicle.IsActive) return BadRequest("Stop tracking before editing this vehicle.");
+
+        var normalized = request.RegistrationNumber.Trim().ToUpperInvariant();
+        if (normalized != vehicle.RegistrationNumber.ToUpperInvariant())
+        {
+            var exists = await _db.Vehicles.AnyAsync(v => v.Id != vehicleId && v.RegistrationNumber.ToUpper() == normalized);
+            if (exists) return Conflict("A vehicle with this registration number is already registered.");
+        }
+
+        vehicle.RegistrationNumber = request.RegistrationNumber;
+        vehicle.Type = request.Type;
+        vehicle.FromLocation = request.FromLocation;
+        vehicle.ToLocation = request.ToLocation;
+        vehicle.DestinationLatitude = request.DestinationLatitude;
+        vehicle.DestinationLongitude = request.DestinationLongitude;
+
+        vehicle.FromPlaceId = !string.IsNullOrWhiteSpace(request.FromLocation)
+            ? request.FromPlaceId ?? await FindOrCreatePlace(request.FromLocation, null, null)
+            : null;
+        vehicle.ToPlaceId = !string.IsNullOrWhiteSpace(request.ToLocation)
+            ? request.ToPlaceId ?? await FindOrCreatePlace(request.ToLocation, request.DestinationLatitude, request.DestinationLongitude)
+            : null;
+
+        // Stops have no identity passengers depend on across an edit — replace
+        // the whole set rather than diffing, which is both simpler and safer.
+        _db.RouteStops.RemoveRange(vehicle.Stops);
+        vehicle.Stops.Clear();
+        if (request.Stops is { Count: > 0 })
+        {
+            for (var i = 0; i < request.Stops.Count; i++)
+            {
+                var s = request.Stops[i];
+                var placeId = s.PlaceId ?? await FindOrCreatePlace(s.Name, s.Latitude, s.Longitude);
+                vehicle.Stops.Add(new RouteStop { Name = s.Name, Order = i, Latitude = s.Latitude, Longitude = s.Longitude, PlaceId = placeId });
+            }
+        }
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("A vehicle with this registration number is already registered.");
+        }
+
+        return Ok(ToVehicleResponse(vehicle));
+    }
+
+    [HttpDelete("{vehicleId:guid}")]
+    [Authorize(Roles = "Driver")]
+    public async Task<IActionResult> DeleteVehicle(Guid vehicleId)
+    {
+        var vehicle = await _db.Vehicles.SingleOrDefaultAsync(v => v.Id == vehicleId && v.DriverId == CurrentUserId);
+        if (vehicle is null) return NotFound();
+        if (vehicle.IsActive) return BadRequest("Stop tracking before deleting this vehicle.");
+
+        // Cascade delete already handles Trips/LocationPings/RouteStops/
+        // Bookings/WatchedVehicles — all FKs to Vehicle are DeleteBehavior.Cascade.
+        _db.Vehicles.Remove(vehicle);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
     /// <summary>
     /// Resolves a place name to a Place row, creating one if this exact name
     /// (case-insensitive) has never been seen before. Two drivers registering

@@ -81,6 +81,8 @@ export default function DriverPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [deleteConfirmVehicle, setDeleteConfirmVehicle] = useState<Vehicle | null>(null);
+  const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
   // Tracking keeps running off its own saved token after logout, the same
   // way the mobile app's background task does — see trackingToken.ts.
   const [trackingToken, setTrackingToken] = useState<string | null>(null);
@@ -304,6 +306,22 @@ export default function DriverPage() {
     }
   }
 
+  async function handleDeleteVehicle() {
+    if (!token || !deleteConfirmVehicle) return;
+    const vehicleId = deleteConfirmVehicle.id;
+    setDeletingVehicleId(vehicleId);
+    try {
+      await vehicleApi.deleteVehicle(token, vehicleId);
+      setVehicles((prev) => prev.filter((v) => v.id !== vehicleId));
+      setDeleteConfirmVehicle(null);
+      showToast("Vehicle deleted", "info");
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : String(err), "error");
+    } finally {
+      setDeletingVehicleId(null);
+    }
+  }
+
   if (isLoading || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -517,13 +535,35 @@ export default function DriverPage() {
                         {trackingActionBusyId === item.id ? <Spinner /> : "■ Stop"}
                       </button>
                     ) : (
-                      <button
-                        onClick={() => startTracking(item.id)}
-                        disabled={tracking || trackingActionBusyId === item.id}
-                        className="flex flex-shrink-0 items-center rounded-[10px] bg-accent px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300"
-                      >
-                        {trackingActionBusyId === item.id ? <Spinner className="h-4 w-4 border-2 border-white border-t-transparent" /> : "▶ Start"}
-                      </button>
+                      <div className="flex flex-shrink-0 items-center gap-1.5">
+                        {token && (
+                          <>
+                            <button
+                              onClick={() => router.push(`/driver/vehicle/${item.id}/edit`)}
+                              disabled={tracking}
+                              title="Edit vehicle"
+                              className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-slate-100 text-base transition hover:bg-slate-200 disabled:opacity-40"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmVehicle(item)}
+                              disabled={tracking}
+                              title="Delete vehicle"
+                              className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-red-50 text-base transition hover:bg-red-100 disabled:opacity-40"
+                            >
+                              🗑️
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => startTracking(item.id)}
+                          disabled={tracking || trackingActionBusyId === item.id}
+                          className="flex flex-shrink-0 items-center rounded-[10px] bg-accent px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300"
+                        >
+                          {trackingActionBusyId === item.id ? <Spinner className="h-4 w-4 border-2 border-white border-t-transparent" /> : "▶ Start"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
@@ -551,6 +591,35 @@ export default function DriverPage() {
         onCancel={() => setLogoutConfirmOpen(false)}
         onConfirm={handleConfirmedSignOut}
       />
+
+      {deleteConfirmVehicle && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-8"
+          onClick={() => setDeleteConfirmVehicle(null)}
+        >
+          <div className="w-full max-w-sm rounded-[20px] bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-1.5 text-lg font-extrabold text-slate-800">Delete {deleteConfirmVehicle.registrationNumber}?</h2>
+            <p className="mb-5 text-[13px] leading-[19px] text-slate-500">
+              This permanently removes the vehicle along with its trip history and any bookings. This can&apos;t be undone.
+            </p>
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setDeleteConfirmVehicle(null)}
+                className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteVehicle}
+                disabled={deletingVehicleId === deleteConfirmVehicle.id}
+                className="flex flex-1 items-center justify-center rounded-xl bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {deletingVehicleId === deleteConfirmVehicle.id ? <Spinner className="h-4 w-4 border-2 border-white border-t-transparent" /> : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

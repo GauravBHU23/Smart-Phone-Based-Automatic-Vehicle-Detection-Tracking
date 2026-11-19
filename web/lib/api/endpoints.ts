@@ -61,6 +61,29 @@ export const vehicleApi = {
       token
     ),
   myVehicles: (token: string) => api.get<Vehicle[]>("/api/vehicles/mine", token),
+  updateVehicle: (
+    token: string,
+    vehicleId: string,
+    registrationNumber: string,
+    type: VehicleType,
+    options: RegisterVehicleOptions = {}
+  ) =>
+    api.put<Vehicle>(
+      `/api/vehicles/${vehicleId}`,
+      {
+        registrationNumber,
+        type,
+        fromLocation: options.fromLocation,
+        toLocation: options.toLocation,
+        fromPlaceId: options.fromPlaceId,
+        toPlaceId: options.toPlaceId,
+        destinationLatitude: options.destinationLatitude,
+        destinationLongitude: options.destinationLongitude,
+        stops: options.stops,
+      },
+      token
+    ),
+  deleteVehicle: (token: string, vehicleId: string) => api.delete<void>(`/api/vehicles/${vehicleId}`, token),
   startTracking: (token: string, vehicleId: string) =>
     api.post<void>(`/api/vehicles/${vehicleId}/start`, undefined, token),
   stopTracking: (token: string, vehicleId: string) =>
@@ -129,4 +152,6 @@ export const adminApi = {
     api.post<void>(`/api/admin/vehicles/${vehicleId}/suspend`, undefined, token),
   unsuspendVehicle: (token: string, vehicleId: string) =>
     api.post<void>(`/api/admin/vehicles/${vehicleId}/unsuspend`, undefined, token),
+  getBookings: (token: string, search?: string) =>
+    api.get<Booking[]>(`/api/admin/bookings${search ? `?search=${encodeURIComponent(search)}` : ""}`, token),
 };

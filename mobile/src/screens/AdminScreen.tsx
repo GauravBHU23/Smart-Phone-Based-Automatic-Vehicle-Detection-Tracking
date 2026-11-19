@@ -17,9 +17,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { adminApi } from "../api/endpoints";
 import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import { useAuth } from "../context/AuthContext";
-import { AdminDriver, AdminStats, AdminVehicle } from "../types";
+import { AdminDriver, AdminStats, AdminVehicle, Booking, BookingStatus } from "../types";
 
-type Tab = "overview" | "drivers" | "vehicles";
+type Tab = "overview" | "drivers" | "vehicles" | "bookings";
+
+const STATUS_COLORS: Record<BookingStatus, { bg: string; text: string }> = {
+  Pending: { bg: "#fef3c7", text: "#92400e" },
+  Accepted: { bg: "#dcfce7", text: "#16a34a" },
+  Rejected: { bg: "#fee2e2", text: "#dc2626" },
+  Cancelled: { bg: "#f1f5f9", text: "#64748b" },
+  Completed: { bg: "#dbeafe", text: "#1d4ed8" },
+};
 
 export default function AdminScreen() {
   const { token, signOut } = useAuth();
@@ -27,6 +35,7 @@ export default function AdminScreen() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [drivers, setDrivers] = useState<AdminDriver[]>([]);
   const [vehicles, setVehicles] = useState<AdminVehicle[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,14 +45,16 @@ export default function AdminScreen() {
   const loadAll = useCallback(async () => {
     if (!token) return;
     try {
-      const [statsRes, driversRes, vehiclesRes] = await Promise.all([
+      const [statsRes, driversRes, vehiclesRes, bookingsRes] = await Promise.all([
         adminApi.getStats(token),
         adminApi.getDrivers(token),
         adminApi.getVehicles(token),
+        adminApi.getBookings(token),
       ]);
       setStats(statsRes);
       setDrivers(driversRes);
       setVehicles(vehiclesRes);
+      setBookings(bookingsRes);
     } catch (err) {
       console.warn("Failed to load admin data:", err);
     }
@@ -142,6 +153,12 @@ export default function AdminScreen() {
       v.registrationNumber.toLowerCase().includes(search.toLowerCase()) ||
       v.driverName.toLowerCase().includes(search.toLowerCase())
   );
+  const filteredBookings = bookings.filter(
+    (b) =>
+      !search.trim() ||
+      b.vehicleRegistrationNumber.toLowerCase().includes(search.toLowerCase()) ||
+      b.passengerName.toLowerCase().includes(search.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -166,14 +183,14 @@ export default function AdminScreen() {
         </View>
 
         <View style={styles.tabRow}>
-          {(["overview", "drivers", "vehicles"] as Tab[]).map((t) => (
+          {(["overview", "drivers", "vehicles", "bookings"] as Tab[]).map((t) => (
             <TouchableOpacity
               key={t}
               style={[styles.tabButton, tab === t && styles.tabButtonActive]}
               onPress={() => setTab(t)}
             >
               <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                {t === "overview" ? "Overview" : t === "drivers" ? "Drivers" : "Vehicles"}
+                {t === "overview" ? "Overview" : t === "drivers" ? "Drivers" : t === "vehicles" ? "Vehicles" : "Bookings"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -194,16 +211,21 @@ export default function AdminScreen() {
             <StatCard label="Trips all-time" value={stats.tripsAllTime} color="#9333ea" />
             <StatCard label="Suspended drivers" value={stats.suspendedDrivers} color="#dc2626" />
             <StatCard label="Suspended vehicles" value={stats.suspendedVehicles} color="#dc2626" />
+            <StatCard label="Total bookings" value={stats.totalBookings} color="#4f46e5" />
+            <StatCard label="Pending bookings" value={stats.pendingBookings} color="#d97706" />
+            <StatCard label="Completed rides" value={stats.completedRides} color="#2563eb" />
           </View>
         </ScrollView>
       )}
 
-      {(tab === "drivers" || tab === "vehicles") && (
+      {(tab === "drivers" || tab === "vehicles" || tab === "bookings") && (
         <>
           <View style={styles.searchBox}>
             <TextInput
               style={styles.searchInput}
-              placeholder={tab === "drivers" ? "Search by name or phone" : "Search by number or driver"}
+              placeholder={
+                tab === "drivers" ? "Search by name or phone" : tab === "vehicles" ? "Search by number or driver" : "Search by number or passenger"
+              }
               placeholderTextColor="#9ca3af"
               value={search}
               onChangeText={setSearch}
@@ -240,7 +262,7 @@ export default function AdminScreen() {
               )}
               ListEmptyComponent={<Text style={styles.empty}>No drivers found.</Text>}
             />
-          ) : (
+          ) : tab === "vehicles" ? (
             <FlatList
               data={filteredVehicles}
               keyExtractor={(v) => v.id}
@@ -270,6 +292,38 @@ export default function AdminScreen() {
                 </View>
               )}
               ListEmptyComponent={<Text style={styles.empty}>No vehicles found.</Text>}
+            />
+          ) : (
+            <FlatList
+              data={filteredBookings}
+              keyExtractor={(b) => b.id}
+              contentContainerStyle={styles.listContent}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2563eb"]} />}
+              renderItem={({ item }) => {
+                const colors = STATUS_COLORS[item.status];
+                return (
+                  <View style={styles.row}>
+                    <View style={styles.rowInfo}>
+                      <View style={styles.bookingTopRow}>
+                        <Text style={styles.rowTitle}>{item.vehicleRegistrationNumber}</Text>
+                        <View style={[styles.statusPill, { backgroundColor: colors.bg }]}>
+                          <Text style={[styles.statusPillText, { color: colors.text }]}>{item.status}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.rowSub}>
+                        {item.passengerName} · {item.passengerPhone}
+                      </Text>
+                      {item.driverPhone && <Text style={styles.rowSub}>Driver: {item.driverPhone}</Text>}
+                      {(item.fromLocation || item.toLocation) && (
+                        <Text style={styles.rowSub}>
+                          {item.fromLocation ?? "—"} → {item.toLocation ?? "—"}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.empty}>No bookings found.</Text>}
             />
           )}
         </>
@@ -352,6 +406,9 @@ const styles = StyleSheet.create({
   rowInfo: { flex: 1 },
   rowTitle: { fontSize: 15, fontWeight: "700", color: "#1e293b" },
   rowSub: { fontSize: 13, color: "#64748b", marginTop: 2 },
+  bookingTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  statusPill: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  statusPillText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
   suspendedLabel: { fontSize: 11, fontWeight: "700", color: "#dc2626", marginTop: 4, letterSpacing: 0.5 },
   actionButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, minWidth: 90, alignItems: "center" },
   suspendButton: { backgroundColor: "#dc2626" },

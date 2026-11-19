@@ -142,6 +142,9 @@ export interface AdminStats {
   suspendedVehicles: number;
   tripsToday: number;
   tripsAllTime: number;
+  totalBookings: number;
+  pendingBookings: number;
+  completedRides: number;
 }
 
 export type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Cancelled" | "Completed";

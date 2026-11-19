@@ -92,6 +92,9 @@ public class AdminController : ControllerBase
         var suspendedVehicles = await _db.Vehicles.CountAsync(v => v.IsSuspended);
         var tripsToday = await _db.Trips.CountAsync(t => t.StartedAt >= todayUtc);
         var tripsAllTime = await _db.Trips.CountAsync();
+        var totalBookings = await _db.Bookings.CountAsync();
+        var pendingBookings = await _db.Bookings.CountAsync(b => b.Status == BookingStatus.Pending);
+        var completedRides = await _db.Bookings.CountAsync(b => b.Status == BookingStatus.Completed);
 
         return Ok(new AdminStatsResponse(
             totalDrivers,
@@ -101,9 +104,56 @@ public class AdminController : ControllerBase
             suspendedDrivers,
             suspendedVehicles,
             tripsToday,
-            tripsAllTime
+            tripsAllTime,
+            totalBookings,
+            pendingBookings,
+            completedRides
         ));
     }
+
+    [HttpGet("bookings")]
+    public async Task<ActionResult<List<BookingResponse>>> GetBookings([FromQuery] string? search)
+    {
+        var query = _db.Bookings
+            .Include(b => b.Vehicle).ThenInclude(v => v!.Driver)
+            .Include(b => b.Passenger)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(b =>
+                b.Vehicle!.RegistrationNumber.Contains(term) ||
+                b.Passenger!.Name.Contains(term) ||
+                b.Passenger!.Phone.Contains(term));
+        }
+
+        var bookings = await query
+            .OrderByDescending(b => b.CreatedAt)
+            .ToListAsync();
+
+        // Admin moderation view: always show both phone numbers regardless of
+        // status, unlike the driver/passenger-facing endpoints which only
+        // reveal the other party's number once a booking is mutually accepted.
+        return Ok(bookings.Select(b => ToBookingResponse(b)).ToList());
+    }
+
+    private static BookingResponse ToBookingResponse(Booking b) => new(
+        b.Id,
+        b.VehicleId,
+        b.Vehicle!.RegistrationNumber,
+        b.Vehicle!.Type,
+        b.PassengerId,
+        b.Passenger!.Name,
+        b.Passenger!.Phone,
+        b.Vehicle!.Driver?.Phone,
+        b.Status,
+        b.FromLocation,
+        b.ToLocation,
+        b.Note,
+        b.CreatedAt,
+        b.RespondedAt
+    );
 
     [HttpPost("drivers/{driverId:guid}/suspend")]
     public async Task<IActionResult> SuspendDriver(Guid driverId)
@@ -146,10 +196,42 @@ public class AdminController : ControllerBase
                 .FirstOrDefaultAsync();
             if (openTrip is not null) openTrip.EndedAt = DateTime.UtcNow;
 
+            // Same as the driver-initiated StopTracking path: an admin force-
+            // stopping the vehicle is just as real a ride-end as the driver
+            // pressing Stop themselves. Without this, a booking the driver had
+            // already accepted would get stuck on "Accepted" forever with no
+            // one able to act on it again.
+            var acceptedBookingIds = await _db.Bookings
+                .Where(b => b.VehicleId == vehicleId && b.Status == BookingStatus.Accepted)
+                .Select(b => b.Id)
+                .ToListAsync();
+
+            if (acceptedBookingIds.Count > 0)
+            {
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE \"Bookings\" SET \"Status\" = 'Completed', \"RespondedAt\" = {DateTime.UtcNow} WHERE \"VehicleId\" = {vehicleId} AND \"Status\" = 'Accepted'"
+                );
+            }
+
             await _db.SaveChangesAsync();
 
             await _hub.Clients.Group("passengers").SendAsync("VehicleStopped", vehicleId);
             await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId)).SendAsync("VehicleStopped", vehicleId);
+
+            if (acceptedBookingIds.Count > 0)
+            {
+                var completedBookings = await _db.Bookings
+                    .Include(b => b.Vehicle).ThenInclude(v => v!.Driver)
+                    .Include(b => b.Passenger)
+                    .Where(b => acceptedBookingIds.Contains(b.Id))
+                    .ToListAsync();
+
+                foreach (var booking in completedBookings)
+                {
+                    await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId))
+                        .SendAsync("BookingCompleted", ToBookingResponse(booking));
+                }
+            }
         }
         else
         {

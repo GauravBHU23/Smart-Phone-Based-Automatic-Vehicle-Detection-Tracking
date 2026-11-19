@@ -7,9 +7,17 @@ import Spinner from "../../components/Spinner";
 import { adminApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { useToast } from "../../lib/toast/ToastContext";
-import { AdminDriver, AdminStats, AdminVehicle } from "../../lib/types";
+import { AdminDriver, AdminStats, AdminVehicle, Booking, BookingStatus } from "../../lib/types";
 
-type Tab = "overview" | "drivers" | "vehicles";
+type Tab = "overview" | "drivers" | "vehicles" | "bookings";
+
+const STATUS_STYLES: Record<BookingStatus, string> = {
+  Pending: "bg-amber-100 text-amber-800",
+  Accepted: "bg-green-100 text-green-700",
+  Rejected: "bg-red-100 text-red-700",
+  Cancelled: "bg-slate-100 text-slate-500",
+  Completed: "bg-blue-100 text-blue-700",
+};
 
 type ConfirmState =
   | { kind: "driver"; item: AdminDriver }
@@ -24,6 +32,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [drivers, setDrivers] = useState<AdminDriver[]>([]);
   const [vehicles, setVehicles] = useState<AdminVehicle[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -38,14 +47,16 @@ export default function AdminPage() {
   const loadAll = useCallback(async () => {
     if (!token) return;
     try {
-      const [statsRes, driversRes, vehiclesRes] = await Promise.all([
+      const [statsRes, driversRes, vehiclesRes, bookingsRes] = await Promise.all([
         adminApi.getStats(token),
         adminApi.getDrivers(token),
         adminApi.getVehicles(token),
+        adminApi.getBookings(token),
       ]);
       setStats(statsRes);
       setDrivers(driversRes);
       setVehicles(vehiclesRes);
+      setBookings(bookingsRes);
     } catch (err) {
       console.warn("Failed to load admin data:", err);
     }
@@ -94,6 +105,12 @@ export default function AdminPage() {
       v.registrationNumber.toLowerCase().includes(search.toLowerCase()) ||
       v.driverName.toLowerCase().includes(search.toLowerCase())
   );
+  const filteredBookings = bookings.filter(
+    (b) =>
+      !search.trim() ||
+      b.vehicleRegistrationNumber.toLowerCase().includes(search.toLowerCase()) ||
+      b.passengerName.toLowerCase().includes(search.toLowerCase())
+  );
 
   if (isLoading || loading) {
     return (
@@ -120,7 +137,7 @@ export default function AdminPage() {
             </button>
           </div>
           <div className="flex gap-2 lg:inline-flex lg:w-auto">
-            {(["overview", "drivers", "vehicles"] as Tab[]).map((t) => (
+            {(["overview", "drivers", "vehicles", "bookings"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -128,7 +145,7 @@ export default function AdminPage() {
                   tab === t ? "bg-white text-slate-800" : "bg-white/10 text-white/80 hover:bg-white/20"
                 }`}
               >
-                {t === "overview" ? "Overview" : t === "drivers" ? "Drivers" : "Vehicles"}
+                {t === "overview" ? "Overview" : t === "drivers" ? "Drivers" : t === "vehicles" ? "Vehicles" : "Bookings"}
               </button>
             ))}
           </div>
@@ -152,15 +169,20 @@ export default function AdminPage() {
             <StatCard label="Trips all-time" value={stats.tripsAllTime} color="text-purple-600" />
             <StatCard label="Suspended drivers" value={stats.suspendedDrivers} color="text-red-600" />
             <StatCard label="Suspended vehicles" value={stats.suspendedVehicles} color="text-red-600" />
+            <StatCard label="Total bookings" value={stats.totalBookings} color="text-indigo-600" />
+            <StatCard label="Pending bookings" value={stats.pendingBookings} color="text-amber-600" />
+            <StatCard label="Completed rides" value={stats.completedRides} color="text-blue-600" />
           </div>
         )}
 
-        {(tab === "drivers" || tab === "vehicles") && (
+        {(tab === "drivers" || tab === "vehicles" || tab === "bookings") && (
           <>
             <div className="px-4 pb-2 pt-3.5 lg:px-0 lg:pt-6">
               <input
                 type="text"
-                placeholder={tab === "drivers" ? "Search by name or phone" : "Search by number or driver"}
+                placeholder={
+                  tab === "drivers" ? "Search by name or phone" : tab === "vehicles" ? "Search by number or driver" : "Search by number or passenger"
+                }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-[10px] border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 lg:max-w-md"
@@ -168,7 +190,28 @@ export default function AdminPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-2.5 px-4 lg:grid-cols-2 lg:gap-3 lg:px-0 lg:pb-8">
-              {tab === "drivers"
+              {tab === "bookings"
+                ? filteredBookings.map((item) => (
+                    <div key={item.id} className="rounded-xl bg-white p-3.5 shadow-sm transition hover:shadow-md">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[15px] font-bold text-slate-800">{item.vehicleRegistrationNumber}</p>
+                        <span className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold tracking-wide ${STATUS_STYLES[item.status]}`}>
+                          {item.status}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-[13px] text-slate-600">
+                        {item.passengerName} · {item.passengerPhone}
+                      </p>
+                      {item.driverPhone && <p className="mt-0.5 text-[13px] text-slate-500">Driver: {item.driverPhone}</p>}
+                      {(item.fromLocation || item.toLocation) && (
+                        <p className="mt-1 text-[13px] text-slate-500">
+                          {item.fromLocation ?? "—"} → {item.toLocation ?? "—"}
+                        </p>
+                      )}
+                      <p className="mt-1 text-[11px] text-slate-400">{new Date(item.createdAt).toLocaleString()}</p>
+                    </div>
+                  ))
+                : tab === "drivers"
                 ? filteredDrivers.map((item) => (
                     <div
                       key={item.id}
@@ -230,6 +273,9 @@ export default function AdminPage() {
               )}
               {tab === "vehicles" && filteredVehicles.length === 0 && (
                 <p className="col-span-full mt-10 text-center text-slate-400">No vehicles found.</p>
+              )}
+              {tab === "bookings" && filteredBookings.length === 0 && (
+                <p className="col-span-full mt-10 text-center text-slate-400">No bookings found.</p>
               )}
             </div>
           </>

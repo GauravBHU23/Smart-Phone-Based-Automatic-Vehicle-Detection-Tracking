@@ -32,5 +32,8 @@ public record AdminStatsResponse(
     int SuspendedDrivers,
     int SuspendedVehicles,
     int TripsToday,
-    int TripsAllTime
+    int TripsAllTime,
+    int TotalBookings,
+    int PendingBookings,
+    int CompletedRides
 );

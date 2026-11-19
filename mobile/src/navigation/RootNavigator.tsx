@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import AdminScreen from "../screens/AdminScreen";
 import BookVehicleScreen from "../screens/BookVehicleScreen";
+import EditVehicleScreen from "../screens/EditVehicleScreen";
 import LoginScreen from "../screens/LoginScreen";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
 import RegisterScreen from "../screens/RegisterScreen";
@@ -43,6 +44,7 @@ export default function RootNavigator() {
             <Stack.Screen name="Driver" component={DriverScreen} />
             <Stack.Screen name="VehicleStatus" component={VehicleStatusScreen} />
             <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+            <Stack.Screen name="EditVehicle" component={EditVehicleScreen} />
           </>
         ) : role === "Admin" ? (
           <Stack.Screen name="Admin" component={AdminScreen} />

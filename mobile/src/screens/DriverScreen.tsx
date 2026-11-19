@@ -48,6 +48,15 @@ export default function DriverScreen() {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [locationStale, setLocationStale] = useState(false);
 
+  // This screen stays mounted (just backgrounded) while EditVehicleScreen is
+  // pushed on top — so an edit's changes need an explicit refresh on return,
+  // not just the one-time mount effect below.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", loadVehicles);
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation]);
+
   useEffect(() => {
     loadVehicles();
     // Deliberately no stop-tracking cleanup here: this screen can unmount
@@ -306,6 +315,29 @@ export default function DriverScreen() {
     }
   }
 
+  function confirmDeleteVehicle(vehicle: Vehicle) {
+    Alert.alert(
+      `Delete ${vehicle.registrationNumber}?`,
+      "This permanently removes the vehicle along with its trip history and any bookings. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!token) return;
+            try {
+              await vehicleApi.deleteVehicle(token, vehicle.id);
+              setVehicles((prev) => prev.filter((v) => v.id !== vehicle.id));
+            } catch (err) {
+              Alert.alert("Could not delete vehicle", err instanceof ApiError ? err.message : String(err));
+            }
+          },
+        },
+      ]
+    );
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
@@ -482,14 +514,32 @@ export default function DriverScreen() {
                   <Text style={styles.stopButtonText}>■ Stop</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity
-                  style={[styles.startButton, tracking && styles.startButtonDisabled]}
-                  disabled={tracking}
-                  onPress={() => startTracking(item.id)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.startButtonText}>▶ Start</Text>
-                </TouchableOpacity>
+                <View style={styles.vehicleActionsRow}>
+                  <TouchableOpacity
+                    style={[styles.iconButton, tracking && styles.iconButtonDisabled]}
+                    disabled={tracking}
+                    onPress={() => navigation.navigate("EditVehicle", { vehicle: item })}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.iconButtonText}>✏️</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.iconButton, styles.iconButtonDanger, tracking && styles.iconButtonDisabled]}
+                    disabled={tracking}
+                    onPress={() => confirmDeleteVehicle(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.iconButtonText}>🗑️</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.startButton, tracking && styles.startButtonDisabled]}
+                    disabled={tracking}
+                    onPress={() => startTracking(item.id)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.startButtonText}>▶ Start</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
           );
@@ -697,6 +747,18 @@ const styles = StyleSheet.create({
   vehicleType: { color: "#64748b", fontSize: 13, marginTop: 2 },
   startButton: { backgroundColor: "#2563eb", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   startButtonDisabled: { backgroundColor: "#cbd5e1" },
+  vehicleActionsRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconButtonDanger: { backgroundColor: "#fef2f2" },
+  iconButtonDisabled: { opacity: 0.4 },
+  iconButtonText: { fontSize: 15 },
   startButtonText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   stopButton: { backgroundColor: "#dc2626", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   stopButtonText: { color: "#fff", fontWeight: "700", fontSize: 13 },

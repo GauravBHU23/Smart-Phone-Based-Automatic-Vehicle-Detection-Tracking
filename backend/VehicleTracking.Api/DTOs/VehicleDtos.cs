@@ -16,6 +16,18 @@ public record RegisterVehicleRequest(
     List<StopInput>? Stops
 );
 
+public record UpdateVehicleRequest(
+    string RegistrationNumber,
+    VehicleType Type,
+    string? FromLocation,
+    string? ToLocation,
+    double? DestinationLatitude,
+    double? DestinationLongitude,
+    Guid? FromPlaceId,
+    Guid? ToPlaceId,
+    List<StopInput>? Stops
+);
+
 public record StopDto(string Name, double? Latitude, double? Longitude, bool Reached);
 
 public record VehicleResponse(
