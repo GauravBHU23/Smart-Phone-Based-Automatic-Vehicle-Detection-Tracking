@@ -123,3 +123,22 @@ export interface AdminStats {
   tripsToday: number;
   tripsAllTime: number;
 }
+
+export type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Cancelled";
+
+export interface Booking {
+  id: string;
+  vehicleId: string;
+  vehicleRegistrationNumber: string;
+  vehicleType: VehicleType;
+  passengerId: string;
+  passengerName: string;
+  passengerPhone: string | null;
+  driverPhone: string | null;
+  status: BookingStatus;
+  fromLocation: string | null;
+  toLocation: string | null;
+  note: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+}

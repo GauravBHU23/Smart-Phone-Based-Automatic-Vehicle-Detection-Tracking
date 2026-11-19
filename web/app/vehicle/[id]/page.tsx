@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import LiveMap, { MapMarkerSpec } from "../../../components/LiveMap";
 import Spinner from "../../../components/Spinner";
@@ -36,7 +36,8 @@ function timeAgo(iso: string | null): string {
 
 export default function VehicleStatusPage() {
   const { id: vehicleId } = useParams<{ id: string }>();
-  const { token } = useAuth();
+  const router = useRouter();
+  const { token, role } = useAuth();
   const { showToast } = useToast();
   const [status, setStatus] = useState<VehicleStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -127,6 +128,19 @@ export default function VehicleStatusPage() {
     } finally {
       setTogglingWatch(false);
     }
+  }
+
+  function handleBookPress() {
+    if (!token) {
+      showToast("Log in to book a ride", "info");
+      router.push("/login");
+      return;
+    }
+    if (role !== "Passenger") {
+      showToast("Only passenger accounts can book a ride.", "error");
+      return;
+    }
+    router.push(`/vehicle/${vehicleId}/book`);
   }
 
   if (loading) {
@@ -234,6 +248,13 @@ export default function VehicleStatusPage() {
             {watchMessage}
           </div>
         )}
+
+        <button
+          onClick={handleBookPress}
+          className="mb-3.5 flex w-full items-center justify-center rounded-[14px] bg-accent py-3.5 text-[15px] font-bold text-white transition hover:bg-accent-dark lg:mb-6"
+        >
+          🚖 Book this vehicle
+        </button>
 
         <div className="lg:grid lg:grid-cols-[1.3fr_1fr] lg:items-start lg:gap-6">
           <div className="lg:sticky lg:top-6 lg:flex lg:flex-col lg:gap-6">

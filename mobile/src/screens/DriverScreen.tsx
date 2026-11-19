@@ -1,3 +1,4 @@
+import { useNavigation } from "@react-navigation/native";
 import * as IntentLauncher from "expo-intent-launcher";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
@@ -16,7 +17,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "../api/client";
-import { vehicleApi } from "../api/endpoints";
+import { bookingApi, vehicleApi } from "../api/endpoints";
+import { useTrackingHub } from "../api/useTrackingHub";
 import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import PlaceAutocomplete from "../components/PlaceAutocomplete";
 import { useAuth } from "../context/AuthContext";
@@ -31,7 +33,9 @@ let nextStopKey = 0;
 
 export default function DriverScreen() {
   const { token, name, signOut } = useAuth();
+  const navigation = useNavigation<any>();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [pendingBookingCount, setPendingBookingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [regNumber, setRegNumber] = useState("");
   const [vehicleType, setVehicleType] = useState<VehicleType>("Bus");
@@ -100,6 +104,38 @@ export default function DriverScreen() {
       setLoading(false);
     }
   }
+
+  async function loadPendingBookingCount() {
+    if (!token) return;
+    try {
+      const bookings = await bookingApi.driverList(token);
+      setPendingBookingCount(bookings.filter((b) => b.status === "Pending").length);
+    } catch (err) {
+      console.warn("Failed to load bookings:", err);
+    }
+  }
+
+  useEffect(() => {
+    loadPendingBookingCount();
+    // Safety-net polling alongside the SignalR subscription below, same
+    // pattern as the passenger map screen — a dropped socket shouldn't mean
+    // the driver silently misses a ride request.
+    const interval = setInterval(loadPendingBookingCount, 15000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  useTrackingHub(
+    {
+      onLocationUpdate: () => {},
+      onBookingRequested: (booking) => {
+        setPendingBookingCount((c) => c + 1);
+        Alert.alert("New ride request", `A passenger wants to book ${booking.vehicleRegistrationNumber}.`);
+      },
+      onBookingCancelled: () => loadPendingBookingCount(),
+    },
+    vehicles.map((v) => v.id)
+  );
 
   // Geocodes a place selection only when it's brand new (no id yet, so no
   // known coordinates from the Place directory) — an existing place picked
@@ -291,11 +327,22 @@ export default function DriverScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.statusPill}>
-          <View style={[styles.statusDot, tracking && styles.statusDotLive]} />
-          <Text style={styles.statusText}>
-            {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
-          </Text>
+        <View style={styles.statusRow}>
+          <View style={styles.statusPill}>
+            <View style={[styles.statusDot, tracking && styles.statusDotLive]} />
+            <Text style={styles.statusText}>
+              {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.bookingsPill}
+            onPress={() => navigation.navigate("MyBookings")}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.bookingsPillText}>
+              📋 {pendingBookingCount > 0 ? `${pendingBookingCount} new` : "Ride requests"}
+            </Text>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
@@ -514,6 +561,7 @@ const styles = StyleSheet.create({
   },
   logoutIcon: { color: "#fff", fontSize: 14 },
   logout: { color: "#fff", fontWeight: "600", fontSize: 13 },
+  statusRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   statusPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -527,6 +575,14 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.4)" },
   statusDotLive: { backgroundColor: "#4ade80" },
   statusText: { color: "#fff", fontSize: 13, fontWeight: "500" },
+  bookingsPill: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+  },
+  bookingsPillText: { color: "#fff", fontSize: 13, fontWeight: "600" },
   staleWarning: {
     flexDirection: "row",
     alignItems: "center",

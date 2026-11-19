@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import LogoutConfirmModal from "../../components/LogoutConfirmModal";
 import PlaceAutocomplete from "../../components/PlaceAutocomplete";
 import Spinner from "../../components/Spinner";
 import { ApiError } from "../../lib/api/client";
-import { vehicleApi } from "../../lib/api/endpoints";
+import { bookingApi, vehicleApi } from "../../lib/api/endpoints";
+import { useTrackingHub } from "../../lib/api/useTrackingHub";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { GOOGLE_MAPS_API_KEY } from "../../lib/mapsConfig";
 import { useForegroundLocation } from "../../lib/tracking/useForegroundLocation";
@@ -70,6 +72,7 @@ export default function DriverPage() {
   const [trackingActionBusyId, setTrackingActionBusyId] = useState<string | null>(null);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pendingBookingCount, setPendingBookingCount] = useState(0);
 
   const { lastSuccessfulPingAt } = useForegroundLocation(token, activeVehicleId, tracking);
   const [locationStale, setLocationStale] = useState(false);
@@ -77,6 +80,33 @@ export default function DriverPage() {
   useEffect(() => {
     if (!isLoading && (!token || role !== "Driver")) router.replace("/login");
   }, [isLoading, token, role, router]);
+
+  useEffect(() => {
+    if (!token) return;
+    async function loadPendingCount() {
+      try {
+        const bookings = await bookingApi.driverList(token!);
+        setPendingBookingCount(bookings.filter((b) => b.status === "Pending").length);
+      } catch (err) {
+        console.warn("Failed to load bookings:", err);
+      }
+    }
+    loadPendingCount();
+    const interval = setInterval(loadPendingCount, 15000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  useTrackingHub(
+    {
+      onLocationUpdate: () => {},
+      onBookingRequested: (booking) => {
+        setPendingBookingCount((c) => c + 1);
+        showToast(`New ride request on ${booking.vehicleRegistrationNumber}`, "info");
+      },
+      onBookingCancelled: () => setPendingBookingCount((c) => Math.max(0, c - 1)),
+    },
+    vehicles.map((v) => v.id)
+  );
 
   useEffect(() => {
     if (token) loadVehicles();
@@ -260,11 +290,19 @@ export default function DriverPage() {
               <span>⏻</span> Log out
             </button>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5">
-            <span className={`h-2 w-2 rounded-full ${tracking ? "animate-pulse bg-green-400" : "bg-white/40"}`} />
-            <span className="text-[13px] font-medium text-white">
-              {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
-            </span>
+          <div className="flex flex-wrap gap-2">
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5">
+              <span className={`h-2 w-2 rounded-full ${tracking ? "animate-pulse bg-green-400" : "bg-white/40"}`} />
+              <span className="text-[13px] font-medium text-white">
+                {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
+              </span>
+            </div>
+            <Link
+              href="/driver/bookings"
+              className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20"
+            >
+              📋 {pendingBookingCount > 0 ? `${pendingBookingCount} new` : "Ride requests"}
+            </Link>
           </div>
         </div>
       </div>

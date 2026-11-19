@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<RouteStop> RouteStops => Set<RouteStop>();
     public DbSet<WatchedVehicle> WatchedVehicles => Set<WatchedVehicle>();
     public DbSet<Place> Places => Set<Place>();
+    public DbSet<Booking> Bookings => Set<Booking>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,6 +101,34 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(w => w.VehicleId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Booking>(e =>
+        {
+            e.Property(b => b.Status).HasConversion<string>();
+
+            e.HasOne(b => b.Vehicle)
+                .WithMany()
+                .HasForeignKey(b => b.VehicleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(b => b.Passenger)
+                .WithMany()
+                .HasForeignKey(b => b.PassengerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // A passenger can't have two pending requests open on the same
+            // vehicle at once (blocks double-tap/retry noise), but different
+            // passengers may each have their own pending request on the same
+            // vehicle — there's no seat-capacity model here. Enforced at the
+            // DB level, same partial-unique-index pattern as the Trip's
+            // "one open trip per vehicle" guard.
+            e.HasIndex(b => new { b.VehicleId, b.PassengerId })
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Pending'")
+                .HasDatabaseName("IX_Bookings_VehicleId_PassengerId_Pending");
+
+            e.HasIndex(b => b.VehicleId);
+            e.HasIndex(b => b.PassengerId);
         });
     }
 }

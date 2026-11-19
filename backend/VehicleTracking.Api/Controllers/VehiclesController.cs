@@ -295,6 +295,74 @@ public class VehiclesController : ControllerBase
         );
     }
 
+    private static BookingResponse ToBookingResponse(Booking b, bool includePassengerPhone, bool includeDriverPhone) => new(
+        b.Id,
+        b.VehicleId,
+        b.Vehicle!.RegistrationNumber,
+        b.Vehicle!.Type,
+        b.PassengerId,
+        b.Passenger!.Name,
+        includePassengerPhone ? b.Passenger!.Phone : null,
+        includeDriverPhone && b.Status == BookingStatus.Accepted ? b.Vehicle!.Driver?.Phone : null,
+        b.Status,
+        b.FromLocation,
+        b.ToLocation,
+        b.Note,
+        b.CreatedAt,
+        b.RespondedAt
+    );
+
+    [HttpPost("{vehicleId:guid}/bookings")]
+    [Authorize(Roles = "Passenger")]
+    public async Task<ActionResult<BookingResponse>> CreateBooking(Guid vehicleId, CreateBookingRequest request)
+    {
+        var vehicle = await _db.Vehicles.Include(v => v.Driver).SingleOrDefaultAsync(v => v.Id == vehicleId);
+        if (vehicle is null) return NotFound("Vehicle not found.");
+        if (vehicle.IsSuspended) return BadRequest("This vehicle is currently suspended and cannot accept bookings.");
+
+        var booking = new Booking
+        {
+            VehicleId = vehicleId,
+            PassengerId = CurrentUserId,
+            FromLocation = request.FromLocation,
+            ToLocation = request.ToLocation,
+            Note = request.Note
+        };
+
+        _db.Bookings.Add(booking);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Race: same passenger double-submitted, or already has a pending
+            // booking on this vehicle from an earlier screen. Re-read and
+            // return the existing pending booking instead of a dead-end error.
+            var existing = await _db.Bookings
+                .Include(b => b.Vehicle).ThenInclude(v => v!.Driver)
+                .Include(b => b.Passenger)
+                .SingleOrDefaultAsync(b => b.VehicleId == vehicleId && b.PassengerId == CurrentUserId && b.Status == BookingStatus.Pending);
+            if (existing is not null) return Conflict(ToBookingResponse(existing, includePassengerPhone: false, includeDriverPhone: true));
+            throw;
+        }
+
+        await _db.Entry(booking).Reference(b => b.Vehicle).LoadAsync();
+        await _db.Entry(booking).Reference(b => b.Passenger).LoadAsync();
+
+        await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId))
+            .SendAsync("BookingRequested", ToBookingResponse(booking, includePassengerPhone: true, includeDriverPhone: false));
+
+        if (vehicle.Driver?.PushToken is { Length: > 0 } driverToken)
+        {
+            await _push.SendAsync(new[] { driverToken }, "New ride request",
+                $"A passenger has requested a ride on {vehicle.RegistrationNumber}.", new { bookingId = booking.Id, vehicleId });
+        }
+
+        return Ok(ToBookingResponse(booking, includePassengerPhone: false, includeDriverPhone: true));
+    }
+
     [HttpPost("{vehicleId:guid}/watch")]
     public async Task<IActionResult> WatchVehicle(Guid vehicleId)
     {

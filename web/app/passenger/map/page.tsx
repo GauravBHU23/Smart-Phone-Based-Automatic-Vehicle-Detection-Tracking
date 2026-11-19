@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import LiveMap, { MapTheme } from "../../../components/LiveMap";
@@ -323,6 +324,16 @@ export default function PassengerMapPage() {
                 {mapTheme === m.value && <span className="font-bold text-accent">✓</span>}
               </button>
             ))}
+
+            <div className="my-1 h-px bg-slate-100" />
+            <Link
+              href="/passenger/bookings"
+              onClick={() => setMenuOpen(false)}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 transition hover:bg-slate-50"
+            >
+              <span className="w-5 text-center text-base">📋</span>
+              <span className="text-[15px] font-semibold text-slate-700">My Bookings</span>
+            </Link>
 
             <div className="my-1 h-px bg-slate-100" />
             <p className="px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-400">Signed in as {name}</p>

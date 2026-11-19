@@ -2,6 +2,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
 import { Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MyBookingsScreen from "../screens/MyBookingsScreen";
 import PassengerScreen from "../screens/PassengerScreen";
 import SearchScreen from "../screens/SearchScreen";
 
@@ -42,6 +43,14 @@ export default function PassengerTabs() {
         options={{
           tabBarLabel: "Find a Vehicle",
           tabBarIcon: ({ focused }) => <TabIcon icon="🚌" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="Bookings"
+        component={MyBookingsScreen}
+        options={{
+          tabBarLabel: "Bookings",
+          tabBarIcon: ({ focused }) => <TabIcon icon="📋" focused={focused} />,
         }}
       />
     </Tab.Navigator>

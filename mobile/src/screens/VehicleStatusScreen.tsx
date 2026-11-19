@@ -40,7 +40,7 @@ function timeAgo(iso: string | null): string {
 
 export default function VehicleStatusScreen({ route, navigation }: any) {
   const { vehicleId }: { vehicleId: string } = route.params;
-  const { token } = useAuth();
+  const { token, role } = useAuth();
   const [status, setStatus] = useState<VehicleStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [watching, setWatching] = useState(false);
@@ -239,6 +239,32 @@ export default function VehicleStatusScreen({ route, navigation }: any) {
           </View>
         </View>
 
+        <TouchableOpacity
+          style={styles.bookButton}
+          onPress={() => {
+            if (!token) {
+              Alert.alert(
+                "Log in to book a ride",
+                "Create a free passenger account to request a ride on this vehicle."
+              );
+              return;
+            }
+            if (role !== "Passenger") {
+              Alert.alert("Passenger account required", "Only passenger accounts can book a ride.");
+              return;
+            }
+            navigation.navigate("BookVehicle", {
+              vehicleId,
+              registrationNumber: status.registrationNumber,
+              fromLocation: status.fromLocation,
+              toLocation: status.toLocation,
+            });
+          }}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.bookButtonText}>🚖 Book this vehicle</Text>
+        </TouchableOpacity>
+
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Driver</Text>
           <Text style={styles.driverName}>{status.driverName}</Text>
@@ -397,6 +423,15 @@ const styles = StyleSheet.create({
   statusDotLive: { backgroundColor: "#16a34a" },
   statusBannerTitle: { fontSize: 15, fontWeight: "700", color: "#1e293b" },
   statusBannerSub: { fontSize: 13, color: "#475569", marginTop: 2 },
+  bookButton: {
+    backgroundColor: "#2563eb",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  bookButtonText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 14,

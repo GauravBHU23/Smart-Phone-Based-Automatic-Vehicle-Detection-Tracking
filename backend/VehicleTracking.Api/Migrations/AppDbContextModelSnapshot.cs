@@ -22,6 +22,51 @@ namespace VehicleTracking.Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("VehicleTracking.Api.Models.Booking", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FromLocation")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PassengerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ToLocation")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PassengerId");
+
+                    b.HasIndex("VehicleId");
+
+                    b.HasIndex("VehicleId", "PassengerId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Bookings_VehicleId_PassengerId_Pending")
+                        .HasFilter("\"Status\" = 'Pending'");
+
+                    b.ToTable("Bookings");
+                });
+
             modelBuilder.Entity("VehicleTracking.Api.Models.LocationPing", b =>
                 {
                     b.Property<long>("Id")
@@ -289,6 +334,25 @@ namespace VehicleTracking.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("WatchedVehicles");
+                });
+
+            modelBuilder.Entity("VehicleTracking.Api.Models.Booking", b =>
+                {
+                    b.HasOne("VehicleTracking.Api.Models.User", "Passenger")
+                        .WithMany()
+                        .HasForeignKey("PassengerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VehicleTracking.Api.Models.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Passenger");
+
+                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("VehicleTracking.Api.Models.LocationPing", b =>

@@ -4,6 +4,7 @@ import {
   AdminStats,
   AdminVehicle,
   AuthResponse,
+  Booking,
   Place,
   RouteSearchResult,
   UserRole,
@@ -88,6 +89,27 @@ export const vehicleApi = {
     api.post<void>(`/api/vehicles/${vehicleId}/watch`, undefined, token),
   unwatch: (token: string, vehicleId: string) =>
     api.post<void>(`/api/vehicles/${vehicleId}/unwatch`, undefined, token),
+  createBooking: (
+    token: string,
+    vehicleId: string,
+    options: { fromLocation?: string; toLocation?: string; note?: string } = {}
+  ) =>
+    api.post<Booking>(
+      `/api/vehicles/${vehicleId}/bookings`,
+      { fromLocation: options.fromLocation, toLocation: options.toLocation, note: options.note },
+      token
+    ),
+};
+
+export const bookingApi = {
+  mine: (token: string) => api.get<Booking[]>("/api/bookings/mine", token),
+  driverList: (token: string) => api.get<Booking[]>("/api/bookings/driver", token),
+  cancel: (token: string, bookingId: string) =>
+    api.post<void>(`/api/bookings/${bookingId}/cancel`, undefined, token),
+  accept: (token: string, bookingId: string) =>
+    api.post<Booking>(`/api/bookings/${bookingId}/accept`, undefined, token),
+  reject: (token: string, bookingId: string) =>
+    api.post<Booking>(`/api/bookings/${bookingId}/reject`, undefined, token),
 };
 
 export const adminApi = {
