@@ -9,7 +9,15 @@ import { useAuth } from "../../lib/auth/AuthContext";
 import { useToast } from "../../lib/toast/ToastContext";
 import { AdminDriver, AdminStats, AdminVehicle, Booking, BookingStatus } from "../../lib/types";
 
-type Tab = "overview" | "drivers" | "vehicles" | "bookings";
+type Tab = "overview" | "drivers" | "vehicles" | "bookings" | "verifications";
+
+const TAB_LABELS: Record<Tab, string> = {
+  overview: "Overview",
+  drivers: "Drivers",
+  vehicles: "Vehicles",
+  bookings: "Bookings",
+  verifications: "Verifications",
+};
 
 const STATUS_STYLES: Record<BookingStatus, string> = {
   Pending: "bg-amber-100 text-amber-800",
@@ -39,6 +47,9 @@ export default function AdminPage() {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reviewDriver, setReviewDriver] = useState<AdminDriver | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
 
   useEffect(() => {
     if (!isLoading && (!token || role !== "Admin")) router.replace("/login");
@@ -96,6 +107,43 @@ export default function AdminPage() {
     }
   }
 
+  async function handleApproveVerification() {
+    if (!token || !reviewDriver) return;
+    setBusyId(reviewDriver.id);
+    try {
+      await adminApi.approveVerification(token, reviewDriver.id);
+      await loadAll();
+      showToast(`${reviewDriver.name} approved`, "success");
+      setReviewDriver(null);
+    } catch (err) {
+      showToast(String(err), "error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleRejectVerification() {
+    if (!token || !reviewDriver || !rejectReason.trim()) return;
+    setBusyId(reviewDriver.id);
+    try {
+      await adminApi.rejectVerification(token, reviewDriver.id, rejectReason.trim());
+      await loadAll();
+      showToast(`${reviewDriver.name} rejected`, "info");
+      setReviewDriver(null);
+      setShowRejectInput(false);
+      setRejectReason("");
+    } catch (err) {
+      showToast(String(err), "error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const pendingVerifications = drivers.filter((d) => d.verificationStatus === "Pending");
+  const filteredPendingVerifications = pendingVerifications.filter(
+    (d) => !search.trim() || d.name.toLowerCase().includes(search.toLowerCase()) || d.phone.includes(search)
+  );
+
   const filteredDrivers = drivers.filter(
     (d) => !search.trim() || d.name.toLowerCase().includes(search.toLowerCase()) || d.phone.includes(search)
   );
@@ -136,8 +184,8 @@ export default function AdminPage() {
               Log out
             </button>
           </div>
-          <div className="flex gap-2 lg:inline-flex lg:w-auto">
-            {(["overview", "drivers", "vehicles", "bookings"] as Tab[]).map((t) => (
+          <div className="flex flex-wrap gap-2 lg:inline-flex lg:w-auto">
+            {(["overview", "drivers", "vehicles", "bookings", "verifications"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -145,7 +193,8 @@ export default function AdminPage() {
                   tab === t ? "bg-white text-slate-800" : "bg-white/10 text-white/80 hover:bg-white/20"
                 }`}
               >
-                {t === "overview" ? "Overview" : t === "drivers" ? "Drivers" : t === "vehicles" ? "Vehicles" : "Bookings"}
+                {TAB_LABELS[t]}
+                {t === "verifications" && pendingVerifications.length > 0 && ` (${pendingVerifications.length})`}
               </button>
             ))}
           </div>
@@ -175,13 +224,17 @@ export default function AdminPage() {
           </div>
         )}
 
-        {(tab === "drivers" || tab === "vehicles" || tab === "bookings") && (
+        {(tab === "drivers" || tab === "vehicles" || tab === "bookings" || tab === "verifications") && (
           <>
             <div className="px-4 pb-2 pt-3.5 lg:px-0 lg:pt-6">
               <input
                 type="text"
                 placeholder={
-                  tab === "drivers" ? "Search by name or phone" : tab === "vehicles" ? "Search by number or driver" : "Search by number or passenger"
+                  tab === "drivers" || tab === "verifications"
+                    ? "Search by name or phone"
+                    : tab === "vehicles"
+                      ? "Search by number or driver"
+                      : "Search by number or passenger"
                 }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -190,7 +243,22 @@ export default function AdminPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-2.5 px-4 lg:grid-cols-2 lg:gap-3 lg:px-0 lg:pb-8">
-              {tab === "bookings"
+              {tab === "verifications"
+                ? filteredPendingVerifications.map((item) => (
+                    <div key={item.id} className="flex items-center rounded-xl bg-white p-3.5 shadow-sm transition hover:shadow-md">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-bold text-slate-800">{item.name}</p>
+                        <p className="mt-0.5 text-[13px] text-slate-500">{item.phone}</p>
+                      </div>
+                      <button
+                        onClick={() => setReviewDriver(item)}
+                        className="flex min-w-[90px] flex-shrink-0 items-center justify-center rounded-lg bg-accent px-3.5 py-2 text-xs font-bold text-white transition hover:bg-accent-dark"
+                      >
+                        Review
+                      </button>
+                    </div>
+                  ))
+                : tab === "bookings"
                 ? filteredBookings.map((item) => (
                     <div key={item.id} className="rounded-xl bg-white p-3.5 shadow-sm transition hover:shadow-md">
                       <div className="flex items-center justify-between">
@@ -268,6 +336,9 @@ export default function AdminPage() {
                     </div>
                   ))}
 
+              {tab === "verifications" && filteredPendingVerifications.length === 0 && (
+                <p className="col-span-full mt-10 text-center text-slate-400">No pending verifications.</p>
+              )}
               {tab === "drivers" && filteredDrivers.length === 0 && (
                 <p className="col-span-full mt-10 text-center text-slate-400">No drivers found.</p>
               )}
@@ -330,6 +401,93 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {reviewDriver && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 px-4 py-8"
+          onClick={() => {
+            setReviewDriver(null);
+            setShowRejectInput(false);
+            setRejectReason("");
+          }}
+        >
+          <div className="w-full max-w-md rounded-[20px] bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-1 text-lg font-extrabold text-slate-800">{reviewDriver.name}</h2>
+            <p className="mb-4 text-[13px] text-slate-500">
+              {reviewDriver.phone}
+              {reviewDriver.dateOfBirth && ` · DOB: ${new Date(reviewDriver.dateOfBirth).toLocaleDateString()}`}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <DocThumb label="Profile" url={reviewDriver.profilePhotoUrl} />
+              <DocThumb label="Driving License" url={reviewDriver.dlPhotoUrl} />
+              <DocThumb label="Aadhaar" url={reviewDriver.aadhaarPhotoUrl} />
+              <DocThumb label="RC certificate" url={reviewDriver.rcPhotoUrl} />
+            </div>
+
+            {showRejectInput ? (
+              <div className="mt-5">
+                <label className="mb-1 block text-[13px] font-semibold text-slate-700">Reason for rejection</label>
+                <input
+                  type="text"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="e.g. DL photo is blurry"
+                  className="w-full rounded-[10px] border border-slate-200 bg-slate-50 p-3 text-[14px] outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                />
+                <div className="mt-3 flex gap-2.5">
+                  <button
+                    onClick={() => setShowRejectInput(false)}
+                    className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-700"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleRejectVerification}
+                    disabled={!rejectReason.trim() || busyId === reviewDriver.id}
+                    className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-60"
+                  >
+                    {busyId === reviewDriver.id ? <Spinner className="mx-auto h-4 w-4 border-2 border-white border-t-transparent" /> : "Confirm reject"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5 flex gap-2.5">
+                <button
+                  onClick={() => setShowRejectInput(true)}
+                  disabled={busyId === reviewDriver.id}
+                  className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-60"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={handleApproveVerification}
+                  disabled={busyId === reviewDriver.id}
+                  className="flex-1 rounded-xl bg-green-600 py-3 text-sm font-bold text-white disabled:opacity-60"
+                >
+                  {busyId === reviewDriver.id ? <Spinner className="mx-auto h-4 w-4 border-2 border-white border-t-transparent" /> : "Approve"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocThumb({ label, url }: { label: string; url: string | null }) {
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-semibold text-slate-500">{label}</p>
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={label} className="h-24 w-full rounded-[10px] border border-slate-200 object-cover" />
+      ) : (
+        <div className="flex h-24 w-full items-center justify-center rounded-[10px] border border-dashed border-slate-300 text-[11px] text-slate-400">
+          Not uploaded
         </div>
       )}
     </div>

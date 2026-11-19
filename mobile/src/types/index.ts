@@ -111,6 +111,8 @@ export interface VehicleLocationUpdate {
   recordedAt: string;
 }
 
+export type DriverVerificationStatus = "NotSubmitted" | "Pending" | "Approved" | "Rejected";
+
 export interface AdminDriver {
   id: string;
   name: string;
@@ -118,6 +120,25 @@ export interface AdminDriver {
   isSuspended: boolean;
   createdAt: string;
   vehicleCount: number;
+  verificationStatus: DriverVerificationStatus;
+  dateOfBirth: string | null;
+  profilePhotoUrl: string | null;
+  dlPhotoUrl: string | null;
+  aadhaarPhotoUrl: string | null;
+  rcPhotoUrl: string | null;
+  verificationRejectionReason: string | null;
+}
+
+export interface VerificationStatusInfo {
+  status: DriverVerificationStatus;
+  dateOfBirth: string | null;
+  profilePhotoUrl: string | null;
+  dlPhotoUrl: string | null;
+  aadhaarPhotoUrl: string | null;
+  rcPhotoUrl: string | null;
+  rejectionReason: string | null;
+  submittedAt: string | null;
+  reviewedAt: string | null;
 }
 
 export interface AdminVehicle {

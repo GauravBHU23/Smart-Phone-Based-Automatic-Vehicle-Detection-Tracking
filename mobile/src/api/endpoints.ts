@@ -13,6 +13,7 @@ import {
   VehicleStatus,
   VehicleType,
   VehicleWithLocation,
+  VerificationStatusInfo,
 } from "../types";
 
 export const authApi = {
@@ -166,4 +167,39 @@ export const adminApi = {
     api.post<void>(`/api/admin/vehicles/${vehicleId}/unsuspend`, undefined, token),
   getBookings: (token: string, search?: string) =>
     api.get<Booking[]>(`/api/admin/bookings${search ? `?search=${encodeURIComponent(search)}` : ""}`, token),
+  approveVerification: (token: string, driverId: string) =>
+    api.post<void>(`/api/admin/drivers/${driverId}/verification/approve`, undefined, token),
+  rejectVerification: (token: string, driverId: string, reason: string) =>
+    api.post<void>(`/api/admin/drivers/${driverId}/verification/reject`, { reason }, token),
+};
+
+type PickedPhoto = { uri: string; name: string; type: string };
+
+export const verificationApi = {
+  getStatus: (token: string) => api.get<VerificationStatusInfo>("/api/driver/verification/status", token),
+  submitDocuments: (
+    token: string,
+    data: {
+      dateOfBirth?: string;
+      profilePhoto?: PickedPhoto;
+      dlPhoto?: PickedPhoto;
+      aadhaarPhoto?: PickedPhoto;
+      rcPhoto?: PickedPhoto;
+    }
+  ) => {
+    const formData = new FormData();
+    if (data.dateOfBirth) formData.append("dateOfBirth", data.dateOfBirth);
+    const appendPhoto = (field: string, photo?: PickedPhoto) => {
+      if (!photo) return;
+      // React Native's FormData accepts this { uri, name, type } shape
+      // directly - it isn't a real File/Blob, but fetch's polyfill on RN
+      // knows how to read it.
+      formData.append(field, { uri: photo.uri, name: photo.name, type: photo.type } as unknown as Blob);
+    };
+    appendPhoto("profilePhoto", data.profilePhoto);
+    appendPhoto("dlPhoto", data.dlPhoto);
+    appendPhoto("aadhaarPhoto", data.aadhaarPhoto);
+    appendPhoto("rcPhoto", data.rcPhoto);
+    return api.postMultipart<VerificationStatusInfo>("/api/driver/verification/documents", formData, token);
+  },
 };

@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import IncomingBookingPopup from "../components/IncomingBookingPopup";
 import AdminScreen from "../screens/AdminScreen";
 import BookVehicleScreen from "../screens/BookVehicleScreen";
+import DriverVerificationScreen from "../screens/DriverVerificationScreen";
 import EditVehicleScreen from "../screens/EditVehicleScreen";
 import LoginScreen from "../screens/LoginScreen";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
@@ -46,6 +47,7 @@ export default function RootNavigator() {
             <Stack.Screen name="VehicleStatus" component={VehicleStatusScreen} />
             <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
             <Stack.Screen name="EditVehicle" component={EditVehicleScreen} />
+            <Stack.Screen name="DriverVerification" component={DriverVerificationScreen} />
           </>
         ) : role === "Admin" ? (
           <Stack.Screen name="Admin" component={AdminScreen} />

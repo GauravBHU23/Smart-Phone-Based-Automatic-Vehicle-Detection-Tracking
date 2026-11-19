@@ -5,6 +5,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,7 +21,15 @@ import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import { useAuth } from "../context/AuthContext";
 import { AdminDriver, AdminStats, AdminVehicle, Booking, BookingStatus } from "../types";
 
-type Tab = "overview" | "drivers" | "vehicles" | "bookings";
+type Tab = "overview" | "drivers" | "vehicles" | "bookings" | "verifications";
+
+const TAB_LABELS: Record<Tab, string> = {
+  overview: "Overview",
+  drivers: "Drivers",
+  vehicles: "Vehicles",
+  bookings: "Bookings",
+  verifications: "Verify",
+};
 
 const STATUS_COLORS: Record<BookingStatus, { bg: string; text: string }> = {
   Pending: { bg: "#fef3c7", text: "#92400e" },
@@ -41,6 +51,9 @@ export default function AdminScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [reviewDriver, setReviewDriver] = useState<AdminDriver | null>(null);
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   const loadAll = useCallback(async () => {
     if (!token) return;
@@ -144,6 +157,41 @@ export default function AdminScreen() {
     );
   }
 
+  async function handleApproveVerification() {
+    if (!token || !reviewDriver) return;
+    setBusyId(reviewDriver.id);
+    try {
+      await adminApi.approveVerification(token, reviewDriver.id);
+      await loadAll();
+      setReviewDriver(null);
+    } catch (err) {
+      Alert.alert("Could not approve", String(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleRejectVerification() {
+    if (!token || !reviewDriver || !rejectReason.trim()) return;
+    setBusyId(reviewDriver.id);
+    try {
+      await adminApi.rejectVerification(token, reviewDriver.id, rejectReason.trim());
+      await loadAll();
+      setReviewDriver(null);
+      setShowRejectInput(false);
+      setRejectReason("");
+    } catch (err) {
+      Alert.alert("Could not reject", String(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const pendingVerifications = drivers.filter((d) => d.verificationStatus === "Pending");
+  const filteredPendingVerifications = pendingVerifications.filter(
+    (d) => !search.trim() || d.name.toLowerCase().includes(search.toLowerCase()) || d.phone.includes(search)
+  );
+
   const filteredDrivers = drivers.filter(
     (d) => !search.trim() || d.name.toLowerCase().includes(search.toLowerCase()) || d.phone.includes(search)
   );
@@ -183,14 +231,15 @@ export default function AdminScreen() {
         </View>
 
         <View style={styles.tabRow}>
-          {(["overview", "drivers", "vehicles", "bookings"] as Tab[]).map((t) => (
+          {(["overview", "drivers", "vehicles", "bookings", "verifications"] as Tab[]).map((t) => (
             <TouchableOpacity
               key={t}
               style={[styles.tabButton, tab === t && styles.tabButtonActive]}
               onPress={() => setTab(t)}
             >
               <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                {t === "overview" ? "Overview" : t === "drivers" ? "Drivers" : t === "vehicles" ? "Vehicles" : "Bookings"}
+                {TAB_LABELS[t]}
+                {t === "verifications" && pendingVerifications.length > 0 ? ` (${pendingVerifications.length})` : ""}
               </Text>
             </TouchableOpacity>
           ))}
@@ -218,13 +267,17 @@ export default function AdminScreen() {
         </ScrollView>
       )}
 
-      {(tab === "drivers" || tab === "vehicles" || tab === "bookings") && (
+      {(tab === "drivers" || tab === "vehicles" || tab === "bookings" || tab === "verifications") && (
         <>
           <View style={styles.searchBox}>
             <TextInput
               style={styles.searchInput}
               placeholder={
-                tab === "drivers" ? "Search by name or phone" : tab === "vehicles" ? "Search by number or driver" : "Search by number or passenger"
+                tab === "drivers" || tab === "verifications"
+                  ? "Search by name or phone"
+                  : tab === "vehicles"
+                    ? "Search by number or driver"
+                    : "Search by number or passenger"
               }
               placeholderTextColor="#9ca3af"
               value={search}
@@ -232,7 +285,29 @@ export default function AdminScreen() {
             />
           </View>
 
-          {tab === "drivers" ? (
+          {tab === "verifications" ? (
+            <FlatList
+              data={filteredPendingVerifications}
+              keyExtractor={(d) => d.id}
+              contentContainerStyle={styles.listContent}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2563eb"]} />}
+              renderItem={({ item }) => (
+                <View style={styles.row}>
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowTitle}>{item.name}</Text>
+                    <Text style={styles.rowSub}>{item.phone}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.reviewButton]}
+                    onPress={() => setReviewDriver(item)}
+                  >
+                    <Text style={styles.actionButtonText}>Review</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              ListEmptyComponent={<Text style={styles.empty}>No pending verifications.</Text>}
+            />
+          ) : tab === "drivers" ? (
             <FlatList
               data={filteredDrivers}
               keyExtractor={(d) => d.id}
@@ -337,7 +412,104 @@ export default function AdminScreen() {
           signOut();
         }}
       />
+
+      <Modal
+        visible={reviewDriver !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setReviewDriver(null);
+          setShowRejectInput(false);
+          setRejectReason("");
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <ScrollView contentContainerStyle={styles.modalCard}>
+            {reviewDriver && (
+              <>
+                <Text style={styles.modalTitle}>{reviewDriver.name}</Text>
+                <Text style={styles.modalSub}>
+                  {reviewDriver.phone}
+                  {reviewDriver.dateOfBirth ? ` · DOB: ${new Date(reviewDriver.dateOfBirth).toLocaleDateString()}` : ""}
+                </Text>
+
+                <View style={styles.docGrid}>
+                  <DocThumb label="Profile" url={reviewDriver.profilePhotoUrl} />
+                  <DocThumb label="Driving License" url={reviewDriver.dlPhotoUrl} />
+                  <DocThumb label="Aadhaar" url={reviewDriver.aadhaarPhotoUrl} />
+                  <DocThumb label="RC certificate" url={reviewDriver.rcPhotoUrl} />
+                </View>
+
+                {showRejectInput ? (
+                  <View style={{ marginTop: 16 }}>
+                    <Text style={styles.label}>Reason for rejection</Text>
+                    <TextInput
+                      style={styles.searchInput}
+                      value={rejectReason}
+                      onChangeText={setRejectReason}
+                      placeholder="e.g. DL photo is blurry"
+                      placeholderTextColor="#9ca3af"
+                    />
+                    <View style={styles.modalActionsRow}>
+                      <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setShowRejectInput(false)}>
+                        <Text style={styles.modalSecondaryButtonText}>Back</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.modalPrimaryButton, { backgroundColor: "#dc2626" }]}
+                        onPress={handleRejectVerification}
+                        disabled={!rejectReason.trim() || busyId === reviewDriver.id}
+                      >
+                        {busyId === reviewDriver.id ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.modalPrimaryButtonText}>Confirm reject</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.modalActionsRow}>
+                    <TouchableOpacity
+                      style={[styles.modalPrimaryButton, { backgroundColor: "#dc2626" }]}
+                      onPress={() => setShowRejectInput(true)}
+                      disabled={busyId === reviewDriver.id}
+                    >
+                      <Text style={styles.modalPrimaryButtonText}>Reject</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.modalPrimaryButton, { backgroundColor: "#16a34a" }]}
+                      onPress={handleApproveVerification}
+                      disabled={busyId === reviewDriver.id}
+                    >
+                      {busyId === reviewDriver.id ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.modalPrimaryButtonText}>Approve</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+function DocThumb({ label, url }: { label: string; url: string | null }) {
+  return (
+    <View style={styles.docThumb}>
+      <Text style={styles.docThumbLabel}>{label}</Text>
+      {url ? (
+        <Image source={{ uri: url }} style={styles.docThumbImage} />
+      ) : (
+        <View style={styles.docThumbPlaceholder}>
+          <Text style={{ fontSize: 11, color: "#94a3b8" }}>Not uploaded</Text>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -413,6 +585,22 @@ const styles = StyleSheet.create({
   actionButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, minWidth: 90, alignItems: "center" },
   suspendButton: { backgroundColor: "#dc2626" },
   unsuspendButton: { backgroundColor: "#16a34a" },
+  reviewButton: { backgroundColor: "#2563eb" },
   actionButtonText: { color: "#fff", fontWeight: "700", fontSize: 12 },
   empty: { textAlign: "center", color: "#94a3b8", marginTop: 40 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.55)", justifyContent: "center", padding: 20 },
+  modalCard: { backgroundColor: "#fff", borderRadius: 20, padding: 20 },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#1e293b" },
+  modalSub: { fontSize: 13, color: "#64748b", marginTop: 2, marginBottom: 14 },
+  label: { fontSize: 13, fontWeight: "600", color: "#334155", marginBottom: 6 },
+  docGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  docThumb: { width: "47%" },
+  docThumbLabel: { fontSize: 11, fontWeight: "600", color: "#64748b", marginBottom: 4 },
+  docThumbImage: { width: "100%", height: 90, borderRadius: 10, backgroundColor: "#f1f5f9" },
+  docThumbPlaceholder: { width: "100%", height: 90, borderRadius: 10, borderWidth: 1, borderColor: "#cbd5e1", borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
+  modalActionsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
+  modalPrimaryButton: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+  modalPrimaryButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  modalSecondaryButton: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: "center", backgroundColor: "#f1f5f9" },
+  modalSecondaryButtonText: { color: "#334155", fontWeight: "700", fontSize: 14 },
 });

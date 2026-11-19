@@ -17,13 +17,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "../api/client";
-import { bookingApi, vehicleApi } from "../api/endpoints";
+import { bookingApi, vehicleApi, verificationApi } from "../api/endpoints";
 import { useTrackingHub } from "../api/useTrackingHub";
 import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import PlaceAutocomplete from "../components/PlaceAutocomplete";
 import { useAuth } from "../context/AuthContext";
 import { getLocationTaskHealth, startBackgroundTracking, stopBackgroundTracking } from "../tracking/locationTask";
-import { PlaceSelection, Vehicle, VehicleType } from "../types";
+import { DriverVerificationStatus, PlaceSelection, Vehicle, VehicleType } from "../types";
 
 const VEHICLE_TYPES: VehicleType[] = ["Bus", "Auto", "Taxi", "Bike", "Truck", "Ambulance", "Other"];
 const LOCATION_INTERVAL_MS = 5000;
@@ -35,6 +35,7 @@ export default function DriverScreen() {
   const navigation = useNavigation<any>();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
+  const [verificationStatus, setVerificationStatus] = useState<DriverVerificationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [regNumber, setRegNumber] = useState("");
   const [vehicleType, setVehicleType] = useState<VehicleType>("Bus");
@@ -131,6 +132,14 @@ export default function DriverScreen() {
     const interval = setInterval(loadPendingBookingCount, 15000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    verificationApi
+      .getStatus(token)
+      .then((status) => setVerificationStatus(status.status))
+      .catch((err) => console.warn("Failed to load verification status:", err));
   }, [token]);
 
   useTrackingHub(
@@ -381,6 +390,31 @@ export default function DriverScreen() {
               📋 {pendingBookingCount > 0 ? `${pendingBookingCount} new` : "Ride requests"}
             </Text>
           </TouchableOpacity>
+          {verificationStatus && verificationStatus !== "Approved" && (
+            <TouchableOpacity
+              style={[styles.bookingsPill, styles.verificationPill]}
+              onPress={() => navigation.navigate("DriverVerification")}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.verificationPillText}>
+                🪪{" "}
+                {verificationStatus === "Pending"
+                  ? "Verification pending"
+                  : verificationStatus === "Rejected"
+                    ? "Verification rejected"
+                    : "Get verified"}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {verificationStatus === "Approved" && (
+            <TouchableOpacity
+              style={styles.bookingsPill}
+              onPress={() => navigation.navigate("DriverVerification")}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.bookingsPillText}>🪪 Verified</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </LinearGradient>
 
@@ -639,6 +673,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   bookingsPillText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  verificationPill: { backgroundColor: "rgba(251,191,36,0.9)" },
+  verificationPillText: { color: "#451a03", fontSize: 13, fontWeight: "700" },
   staleWarning: {
     flexDirection: "row",
     alignItems: "center",

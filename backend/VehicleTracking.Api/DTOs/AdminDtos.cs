@@ -8,7 +8,14 @@ public record AdminDriverResponse(
     string Phone,
     bool IsSuspended,
     DateTime CreatedAt,
-    int VehicleCount
+    int VehicleCount,
+    DriverVerificationStatus VerificationStatus,
+    DateTime? DateOfBirth,
+    string? ProfilePhotoUrl,
+    string? DlPhotoUrl,
+    string? AadhaarPhotoUrl,
+    string? RcPhotoUrl,
+    string? VerificationRejectionReason
 );
 
 public record AdminVehicleResponse(

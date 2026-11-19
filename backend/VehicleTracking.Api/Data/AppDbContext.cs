@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(u => u.Phone).IsUnique();
             e.Property(u => u.Role).HasConversion<string>();
+            e.Property(u => u.VerificationStatus).HasConversion<string>();
         });
 
         modelBuilder.Entity<Vehicle>(e =>

@@ -6,6 +6,7 @@ using VehicleTracking.Api.Data;
 using VehicleTracking.Api.DTOs;
 using VehicleTracking.Api.Hubs;
 using VehicleTracking.Api.Models;
+using VehicleTracking.Api.Services;
 
 namespace VehicleTracking.Api.Controllers;
 
@@ -16,11 +17,13 @@ public class AdminController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IHubContext<TrackingHub> _hub;
+    private readonly PushNotificationService _push;
 
-    public AdminController(AppDbContext db, IHubContext<TrackingHub> hub)
+    public AdminController(AppDbContext db, IHubContext<TrackingHub> hub, PushNotificationService push)
     {
         _db = db;
         _hub = hub;
+        _push = push;
     }
 
     [HttpGet("drivers")]
@@ -42,11 +45,58 @@ public class AdminController : ControllerBase
                 u.Phone,
                 u.IsSuspended,
                 u.CreatedAt,
-                u.Vehicles.Count
+                u.Vehicles.Count,
+                u.VerificationStatus,
+                u.DateOfBirth,
+                u.ProfilePhotoUrl,
+                u.DlPhotoUrl,
+                u.AadhaarPhotoUrl,
+                u.RcPhotoUrl,
+                u.VerificationRejectionReason
             ))
             .ToListAsync();
 
         return Ok(drivers);
+    }
+
+    [HttpPost("drivers/{driverId:guid}/verification/approve")]
+    public async Task<IActionResult> ApproveVerification(Guid driverId)
+    {
+        var driver = await _db.Users.SingleOrDefaultAsync(u => u.Id == driverId && u.Role == UserRole.Driver);
+        if (driver is null) return NotFound();
+
+        driver.VerificationStatus = DriverVerificationStatus.Approved;
+        driver.VerificationReviewedAt = DateTime.UtcNow;
+        driver.VerificationRejectionReason = null;
+        await _db.SaveChangesAsync();
+
+        if (driver.PushToken is { Length: > 0 } token)
+        {
+            await _push.SendAsync(new[] { token }, "You're verified!",
+                "Your documents have been approved. You can now accept ride requests.");
+        }
+
+        return NoContent();
+    }
+
+    [HttpPost("drivers/{driverId:guid}/verification/reject")]
+    public async Task<IActionResult> RejectVerification(Guid driverId, RejectVerificationRequest request)
+    {
+        var driver = await _db.Users.SingleOrDefaultAsync(u => u.Id == driverId && u.Role == UserRole.Driver);
+        if (driver is null) return NotFound();
+
+        driver.VerificationStatus = DriverVerificationStatus.Rejected;
+        driver.VerificationRejectionReason = request.Reason;
+        driver.VerificationReviewedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        if (driver.PushToken is { Length: > 0 } token)
+        {
+            await _push.SendAsync(new[] { token }, "Verification needs attention",
+                $"Your documents were not approved: {request.Reason}");
+        }
+
+        return NoContent();
     }
 
     [HttpGet("vehicles")]

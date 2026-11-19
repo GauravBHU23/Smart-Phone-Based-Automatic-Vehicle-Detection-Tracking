@@ -26,6 +26,7 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddHttpClient<PushNotificationService>();
 builder.Services.AddHttpClient<NominatimGeocodingService>();
+builder.Services.AddHttpClient<CloudinaryService>();
 
 builder.Services.AddCors(options =>
 {

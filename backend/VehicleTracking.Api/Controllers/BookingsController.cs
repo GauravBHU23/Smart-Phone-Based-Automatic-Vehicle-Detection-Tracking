@@ -127,6 +127,9 @@ public class BookingsController : ControllerBase
             .SingleOrDefaultAsync(b => b.Id == bookingId && b.Vehicle!.DriverId == CurrentUserId);
         if (booking is null) return NotFound();
 
+        if (booking.Vehicle!.Driver!.VerificationStatus != DriverVerificationStatus.Approved)
+            return Conflict("Your documents must be verified before you can accept rides.");
+
         if (booking.Status != BookingStatus.Pending)
             return Conflict(ToResponse(booking, includePassengerPhone: true, includeDriverPhone: false));
 

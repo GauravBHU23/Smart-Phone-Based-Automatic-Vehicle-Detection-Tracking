@@ -232,8 +232,17 @@ namespace VehicleTracking.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AadhaarPhotoUrl")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DlPhotoUrl")
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsSuspended")
                         .HasColumnType("boolean");
@@ -250,12 +259,31 @@ namespace VehicleTracking.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ProfilePhotoUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("PushToken")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RcPhotoUrl")
                         .HasColumnType("text");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("VerificationRejectionReason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("VerificationReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VerificationStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("VerificationSubmittedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 

@@ -13,6 +13,7 @@ import {
   VehicleStatus,
   VehicleType,
   VehicleWithLocation,
+  VerificationStatusInfo,
 } from "../types";
 
 export const authApi = {
@@ -162,4 +163,30 @@ export const adminApi = {
     api.post<void>(`/api/admin/vehicles/${vehicleId}/unsuspend`, undefined, token),
   getBookings: (token: string, search?: string) =>
     api.get<Booking[]>(`/api/admin/bookings${search ? `?search=${encodeURIComponent(search)}` : ""}`, token),
+  approveVerification: (token: string, driverId: string) =>
+    api.post<void>(`/api/admin/drivers/${driverId}/verification/approve`, undefined, token),
+  rejectVerification: (token: string, driverId: string, reason: string) =>
+    api.post<void>(`/api/admin/drivers/${driverId}/verification/reject`, { reason }, token),
+};
+
+export const verificationApi = {
+  getStatus: (token: string) => api.get<VerificationStatusInfo>("/api/driver/verification/status", token),
+  submitDocuments: (
+    token: string,
+    data: {
+      dateOfBirth?: string;
+      profilePhoto?: File;
+      dlPhoto?: File;
+      aadhaarPhoto?: File;
+      rcPhoto?: File;
+    }
+  ) => {
+    const formData = new FormData();
+    if (data.dateOfBirth) formData.append("dateOfBirth", data.dateOfBirth);
+    if (data.profilePhoto) formData.append("profilePhoto", data.profilePhoto);
+    if (data.dlPhoto) formData.append("dlPhoto", data.dlPhoto);
+    if (data.aadhaarPhoto) formData.append("aadhaarPhoto", data.aadhaarPhoto);
+    if (data.rcPhoto) formData.append("rcPhoto", data.rcPhoto);
+    return api.postMultipart<VerificationStatusInfo>("/api/driver/verification/documents", formData, token);
+  },
 };

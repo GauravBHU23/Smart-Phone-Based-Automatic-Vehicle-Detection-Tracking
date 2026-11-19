@@ -7,14 +7,14 @@ import LogoutConfirmModal from "../../components/LogoutConfirmModal";
 import PlaceAutocomplete from "../../components/PlaceAutocomplete";
 import Spinner from "../../components/Spinner";
 import { ApiError } from "../../lib/api/client";
-import { bookingApi, vehicleApi } from "../../lib/api/endpoints";
+import { bookingApi, vehicleApi, verificationApi } from "../../lib/api/endpoints";
 import { useTrackingHub } from "../../lib/api/useTrackingHub";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { GOOGLE_MAPS_API_KEY } from "../../lib/mapsConfig";
 import { clearTrackingToken, loadTrackingToken, saveTrackingToken } from "../../lib/tracking/trackingToken";
 import { useForegroundLocation } from "../../lib/tracking/useForegroundLocation";
 import { useToast } from "../../lib/toast/ToastContext";
-import { PlaceSelection, Vehicle, VehicleType } from "../../lib/types";
+import { DriverVerificationStatus, PlaceSelection, Vehicle, VehicleType } from "../../lib/types";
 
 const VEHICLE_TYPES: VehicleType[] = ["Bus", "Auto", "Taxi", "Bike", "Truck", "Ambulance", "Other"];
 
@@ -80,6 +80,7 @@ export default function DriverPage() {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
+  const [verificationStatus, setVerificationStatus] = useState<DriverVerificationStatus | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [deleteConfirmVehicle, setDeleteConfirmVehicle] = useState<Vehicle | null>(null);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
@@ -117,6 +118,14 @@ export default function DriverPage() {
     loadPendingCount();
     const interval = setInterval(loadPendingCount, 15000);
     return () => clearInterval(interval);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    verificationApi
+      .getStatus(token)
+      .then((status) => setVerificationStatus(status.status))
+      .catch((err) => console.warn("Failed to load verification status:", err));
   }, [token]);
 
   useTrackingHub(
@@ -365,6 +374,27 @@ export default function DriverPage() {
                 className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20"
               >
                 📋 {pendingBookingCount > 0 ? `${pendingBookingCount} new` : "Ride requests"}
+              </Link>
+            )}
+            {token && verificationStatus && verificationStatus !== "Approved" && (
+              <Link
+                href="/driver/verification"
+                className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-400/90 px-3 py-1.5 text-[13px] font-semibold text-amber-950 transition hover:bg-amber-400"
+              >
+                🪪{" "}
+                {verificationStatus === "Pending"
+                  ? "Verification pending"
+                  : verificationStatus === "Rejected"
+                    ? "Verification rejected — resubmit"
+                    : "Get verified"}
+              </Link>
+            )}
+            {token && verificationStatus === "Approved" && (
+              <Link
+                href="/driver/verification"
+                className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20"
+              >
+                🪪 Verified
               </Link>
             )}
           </div>
