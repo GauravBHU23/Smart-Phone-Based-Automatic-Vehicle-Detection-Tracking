@@ -127,6 +127,15 @@ public class AppDbContext : DbContext
                 .HasFilter("\"Status\" = 'Pending'")
                 .HasDatabaseName("IX_Bookings_VehicleId_PassengerId_Pending");
 
+            // A passenger can only have one active ride at a time across
+            // ALL vehicles - matches Rapido/Ola. Enforced at the DB level
+            // so a race between two near-simultaneous booking attempts
+            // can't both succeed.
+            e.HasIndex(b => b.PassengerId)
+                .IsUnique()
+                .HasFilter("\"Status\" IN ('Pending', 'Accepted')")
+                .HasDatabaseName("IX_Bookings_PassengerId_Active");
+
             e.HasIndex(b => b.VehicleId);
             e.HasIndex(b => b.PassengerId);
         });

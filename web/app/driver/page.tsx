@@ -122,9 +122,11 @@ export default function DriverPage() {
   useTrackingHub(
     {
       onLocationUpdate: () => {},
-      onBookingRequested: (booking) => {
+      onBookingRequested: () => {
+        // The global IncomingBookingPopup (mounted in layout.tsx) is the
+        // one visible surface for a new request - this just keeps the
+        // badge count in sync, no second toast for the same event.
         setPendingBookingCount((c) => c + 1);
-        showToast(`New ride request on ${booking.vehicleRegistrationNumber}`, "info");
       },
       onBookingCancelled: () => setPendingBookingCount((c) => Math.max(0, c - 1)),
     },

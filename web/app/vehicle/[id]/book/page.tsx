@@ -57,8 +57,13 @@ export default function BookVehiclePage() {
       router.push(`/booking/${booking.id}/waiting`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        showToast("You already have a pending request on this vehicle", "info");
-        router.push("/passenger/bookings");
+        showToast("You already have an active booking — finish or cancel it first", "info");
+        try {
+          const existing = JSON.parse(err.message) as { id?: string };
+          router.push(existing.id ? `/booking/${existing.id}/waiting` : "/passenger/bookings");
+        } catch {
+          router.push("/passenger/bookings");
+        }
         return;
       }
       showToast(err instanceof ApiError ? err.message : String(err), "error");

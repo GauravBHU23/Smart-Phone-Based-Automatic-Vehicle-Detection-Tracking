@@ -146,6 +146,8 @@ export const bookingApi = {
     api.post<Booking>(`/api/bookings/${bookingId}/accept`, undefined, token),
   reject: (token: string, bookingId: string) =>
     api.post<Booking>(`/api/bookings/${bookingId}/reject`, undefined, token),
+  verifyOtp: (token: string, bookingId: string, otp: string) =>
+    api.post<Booking>(`/api/bookings/${bookingId}/verify-otp`, { otp }, token),
 };
 
 export const adminApi = {

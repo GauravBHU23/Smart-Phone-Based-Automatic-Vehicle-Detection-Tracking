@@ -371,7 +371,11 @@ public class VehiclesController : ControllerBase
         );
     }
 
-    private static BookingResponse ToBookingResponse(Booking b, bool includePassengerPhone, bool includeDriverPhone) => new(
+    // includeOtp must only be true on a response that goes directly and
+    // exclusively to the passenger's own request - never on a SignalR
+    // broadcast, which reaches everyone in the vehicle-{id} group including
+    // the driver.
+    private static BookingResponse ToBookingResponse(Booking b, bool includePassengerPhone, bool includeDriverPhone, bool includeOtp = false) => new(
         b.Id,
         b.VehicleId,
         b.Vehicle!.RegistrationNumber,
@@ -386,6 +390,8 @@ public class VehiclesController : ControllerBase
         b.FromLatitude,
         b.FromLongitude,
         b.Note,
+        includeOtp ? b.OtpCode : null,
+        b.OtpVerifiedAt is not null,
         b.CreatedAt,
         b.RespondedAt
     );
@@ -397,6 +403,17 @@ public class VehiclesController : ControllerBase
         var vehicle = await _db.Vehicles.Include(v => v.Driver).SingleOrDefaultAsync(v => v.Id == vehicleId);
         if (vehicle is null) return NotFound("Vehicle not found.");
         if (vehicle.IsSuspended) return BadRequest("This vehicle is currently suspended and cannot accept bookings.");
+
+        // One active ride at a time, across every vehicle - matches
+        // Rapido/Ola. The DB-level partial unique index below is the real
+        // guard against a race; this is just a friendlier early check.
+        var activeElsewhere = await _db.Bookings
+            .Include(b => b.Vehicle).ThenInclude(v => v!.Driver)
+            .Include(b => b.Passenger)
+            .FirstOrDefaultAsync(b => b.PassengerId == CurrentUserId &&
+                (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Accepted));
+        if (activeElsewhere is not null)
+            return Conflict(ToBookingResponse(activeElsewhere, includePassengerPhone: false, includeDriverPhone: true, includeOtp: true));
 
         var booking = new Booking
         {
@@ -417,14 +434,16 @@ public class VehiclesController : ControllerBase
         }
         catch (DbUpdateException)
         {
-            // Race: same passenger double-submitted, or already has a pending
-            // booking on this vehicle from an earlier screen. Re-read and
-            // return the existing pending booking instead of a dead-end error.
+            // Race: same passenger double-submitted, or already has an
+            // active booking (same vehicle or elsewhere) from an earlier
+            // screen. Re-read and return the existing booking instead of a
+            // dead-end error.
             var existing = await _db.Bookings
                 .Include(b => b.Vehicle).ThenInclude(v => v!.Driver)
                 .Include(b => b.Passenger)
-                .SingleOrDefaultAsync(b => b.VehicleId == vehicleId && b.PassengerId == CurrentUserId && b.Status == BookingStatus.Pending);
-            if (existing is not null) return Conflict(ToBookingResponse(existing, includePassengerPhone: false, includeDriverPhone: true));
+                .FirstOrDefaultAsync(b => b.PassengerId == CurrentUserId &&
+                    (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Accepted));
+            if (existing is not null) return Conflict(ToBookingResponse(existing, includePassengerPhone: false, includeDriverPhone: true, includeOtp: true));
             throw;
         }
 
@@ -440,7 +459,7 @@ public class VehiclesController : ControllerBase
                 $"A passenger has requested a ride on {vehicle.RegistrationNumber}.", new { bookingId = booking.Id, vehicleId });
         }
 
-        return Ok(ToBookingResponse(booking, includePassengerPhone: false, includeDriverPhone: true));
+        return Ok(ToBookingResponse(booking, includePassengerPhone: false, includeDriverPhone: true, includeOtp: true));
     }
 
     [HttpPost("{vehicleId:guid}/watch")]

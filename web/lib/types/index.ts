@@ -164,6 +164,8 @@ export interface Booking {
   fromLatitude: number | null;
   fromLongitude: number | null;
   note: string | null;
+  otpCode: string | null;
+  otpVerified: boolean;
   createdAt: string;
   respondedAt: string | null;
 }

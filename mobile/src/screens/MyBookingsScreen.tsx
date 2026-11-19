@@ -6,6 +6,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -40,6 +41,7 @@ export default function MyBookingsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [otpInputs, setOtpInputs] = useState<Record<string, string>>({});
 
   const loadBookings = useCallback(async () => {
     if (!token) return;
@@ -112,6 +114,20 @@ export default function MyBookingsScreen() {
     }
   }
 
+  async function handleVerifyOtp(booking: Booking) {
+    if (!token) return;
+    const otp = otpInputs[booking.id] ?? "";
+    setBusyId(booking.id);
+    try {
+      const updated = await bookingApi.verifyOtp(token, booking.id, otp);
+      setBookings((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+    } catch (err) {
+      Alert.alert("Could not verify code", String(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   function handleCancel(booking: Booking) {
     if (!token) return;
     Alert.alert("Cancel this request?", "The driver will no longer see this as a pending request.", [
@@ -173,6 +189,9 @@ export default function MyBookingsScreen() {
               {!isDriver && item.status === "Accepted" && item.driverPhone && (
                 <Text style={styles.personLine}>Driver phone: {item.driverPhone}</Text>
               )}
+              {!isDriver && item.status === "Accepted" && !item.otpVerified && item.otpCode && (
+                <Text style={styles.otpLine}>Your OTP: {item.otpCode} — share with your driver to start the ride</Text>
+              )}
               {(item.fromLocation || item.toLocation) && (
                 <Text style={styles.routeLine}>
                   {item.fromLocation ?? "—"} → {item.toLocation ?? "—"}
@@ -206,6 +225,32 @@ export default function MyBookingsScreen() {
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
                       <Text style={styles.actionButtonText}>Accept</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {item.status === "Accepted" && isDriver && !item.otpVerified && (
+                <View style={styles.actionRow}>
+                  <TextInput
+                    style={styles.otpInput}
+                    value={otpInputs[item.id] ?? ""}
+                    onChangeText={(text) =>
+                      setOtpInputs((prev) => ({ ...prev, [item.id]: text.replace(/\D/g, "").slice(0, 4) }))
+                    }
+                    placeholder="Ask passenger for OTP"
+                    keyboardType="number-pad"
+                    maxLength={4}
+                  />
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.acceptButton, styles.otpButton]}
+                    onPress={() => handleVerifyOtp(item)}
+                    disabled={busyId === item.id || (otpInputs[item.id] ?? "").length !== 4}
+                  >
+                    {busyId === item.id ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.actionButtonText}>Start ride</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -265,6 +310,7 @@ const styles = StyleSheet.create({
   statusPill: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   statusPillText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
   personLine: { fontSize: 13, color: "#334155", marginTop: 6, fontWeight: "600" },
+  otpLine: { fontSize: 13, color: "#1d4ed8", marginTop: 6, fontWeight: "700" },
   routeLine: { fontSize: 13, color: "#475569", marginTop: 4 },
   noteLine: { fontSize: 12, color: "#64748b", marginTop: 4, fontStyle: "italic" },
   timeLine: { fontSize: 11, color: "#94a3b8", marginTop: 6 },
@@ -280,6 +326,19 @@ const styles = StyleSheet.create({
   acceptButton: { backgroundColor: "#16a34a" },
   rejectButton: { backgroundColor: "#dc2626" },
   actionButtonText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  otpInput: {
+    flex: 1,
+    minHeight: 40,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#f8fafc",
+    borderRadius: 10,
+    paddingHorizontal: 13,
+    fontSize: 15,
+    letterSpacing: 2,
+    color: "#1e293b",
+  },
+  otpButton: { flex: 0, paddingHorizontal: 18 },
   cancelButton: {
     marginTop: 12,
     backgroundColor: "#fef2f2",

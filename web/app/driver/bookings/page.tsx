@@ -35,6 +35,7 @@ export default function DriverBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [otpInputs, setOtpInputs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!isLoading && (!token || role !== "Driver")) router.replace("/login");
@@ -64,8 +65,10 @@ export default function DriverBookingsPage() {
     {
       onLocationUpdate: () => {},
       onBookingRequested: (booking) => {
+        // The global IncomingBookingPopup (mounted in layout.tsx) is the
+        // one visible surface for a new request - this just keeps the
+        // list in sync, no second toast for the same event.
         setBookings((prev) => [booking, ...prev.filter((b) => b.id !== booking.id)]);
-        showToast(`New ride request on ${booking.vehicleRegistrationNumber}`, "info");
       },
       onBookingCancelled: (booking) => setBookings((prev) => prev.map((b) => (b.id === booking.id ? booking : b))),
     },
@@ -97,6 +100,21 @@ export default function DriverBookingsPage() {
     } catch (err) {
       showToast("Could not reject request: " + String(err), "error");
       await loadBookings();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleVerifyOtp(booking: Booking) {
+    if (!token) return;
+    const otp = otpInputs[booking.id] ?? "";
+    setBusyId(booking.id);
+    try {
+      const updated = await bookingApi.verifyOtp(token, booking.id, otp);
+      setBookings((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+      showToast("Ride started", "success");
+    } catch (err) {
+      showToast("Could not verify code: " + String(err), "error");
     } finally {
       setBusyId(null);
     }
@@ -167,6 +185,26 @@ export default function DriverBookingsPage() {
                     className="flex min-h-[40px] flex-1 items-center justify-center rounded-[10px] bg-green-600 text-[13px] font-bold text-white transition hover:bg-green-700 disabled:opacity-60"
                   >
                     {busyId === b.id ? <Spinner className="h-3.5 w-3.5 border-2 border-white border-t-transparent" /> : "Accept"}
+                  </button>
+                </div>
+              )}
+
+              {b.status === "Accepted" && !b.otpVerified && (
+                <div className="mt-3 flex gap-2.5">
+                  <input
+                    value={otpInputs[b.id] ?? ""}
+                    onChange={(e) => setOtpInputs((prev) => ({ ...prev, [b.id]: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                    placeholder="Ask passenger for OTP"
+                    inputMode="numeric"
+                    maxLength={4}
+                    className="min-w-0 flex-1 rounded-[10px] border border-slate-200 bg-slate-50 p-2.5 text-[15px] tracking-[0.2em] text-slate-800 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  />
+                  <button
+                    onClick={() => handleVerifyOtp(b)}
+                    disabled={busyId === b.id || (otpInputs[b.id] ?? "").length !== 4}
+                    className="flex min-h-[40px] flex-shrink-0 items-center justify-center rounded-[10px] bg-green-600 px-4 text-[13px] font-bold text-white transition hover:bg-green-700 disabled:opacity-60"
+                  >
+                    {busyId === b.id ? <Spinner className="h-3.5 w-3.5 border-2 border-white border-t-transparent" /> : "Start ride"}
                   </button>
                 </div>
               )}

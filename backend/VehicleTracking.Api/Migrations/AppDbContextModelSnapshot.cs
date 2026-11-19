@@ -43,6 +43,12 @@ namespace VehicleTracking.Api.Migrations
                     b.Property<string>("Note")
                         .HasColumnType("text");
 
+                    b.Property<string>("OtpCode")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("OtpVerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("PassengerId")
                         .HasColumnType("uuid");
 
@@ -61,7 +67,10 @@ namespace VehicleTracking.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PassengerId");
+                    b.HasIndex("PassengerId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Bookings_PassengerId_Active")
+                        .HasFilter("\"Status\" IN ('Pending', 'Accepted')");
 
                     b.HasIndex("VehicleId");
 

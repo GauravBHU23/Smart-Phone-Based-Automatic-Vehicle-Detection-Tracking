@@ -4,6 +4,8 @@ namespace VehicleTracking.Api.DTOs;
 
 public record CreateBookingRequest(string? FromLocation, string? ToLocation, double? FromLatitude, double? FromLongitude, string? Note);
 
+public record VerifyOtpRequest(string Otp);
+
 public record BookingResponse(
     Guid Id,
     Guid VehicleId,
@@ -19,6 +21,8 @@ public record BookingResponse(
     double? FromLatitude,
     double? FromLongitude,
     string? Note,
+    string? OtpCode,
+    bool OtpVerified,
     DateTime CreatedAt,
     DateTime? RespondedAt
 );

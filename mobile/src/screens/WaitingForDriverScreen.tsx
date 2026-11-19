@@ -169,17 +169,24 @@ export default function WaitingForDriverScreen({ route, navigation }: any) {
   }
 
   if (booking.status === "Accepted" || booking.status === "Completed") {
+    const rideStarted = booking.status === "Completed" || booking.otpVerified;
     return (
       <SafeAreaView style={styles.container} edges={["top", "left", "right", "bottom"]}>
         <View style={styles.center}>
           <View style={styles.successIconWrap}>
             <Text style={styles.successIcon}>✅</Text>
           </View>
-          <Text style={styles.title}>Driver confirmed!</Text>
+          <Text style={styles.title}>{rideStarted ? "Ride in progress" : "Driver confirmed!"}</Text>
           <Text style={styles.subtitle}>
             {booking.vehicleRegistrationNumber} is on the way.
             {booking.driverPhone ? ` Call ${booking.driverPhone} to coordinate.` : ""}
           </Text>
+          {!rideStarted && booking.otpCode && (
+            <View style={styles.otpCard}>
+              <Text style={styles.otpLabel}>Share this code with your driver to start the ride</Text>
+              <Text style={styles.otpCode}>{booking.otpCode}</Text>
+            </View>
+          )}
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={styles.secondaryButton}
@@ -255,6 +262,17 @@ const styles = StyleSheet.create({
   },
   infoReg: { fontSize: 15, fontWeight: "700", color: "#1e293b" },
   infoRoute: { fontSize: 13, color: "#64748b", marginTop: 4 },
+  otpCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: "#eff6ff",
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  otpLabel: { fontSize: 12, fontWeight: "600", color: "#1d4ed8", textAlign: "center" },
+  otpCode: { fontSize: 28, fontWeight: "800", color: "#1e3a8a", letterSpacing: 6, marginTop: 4 },
   cancelButton: {
     marginTop: 32,
     borderWidth: 1,

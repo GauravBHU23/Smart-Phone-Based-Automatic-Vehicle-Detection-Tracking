@@ -136,9 +136,11 @@ export default function DriverScreen() {
   useTrackingHub(
     {
       onLocationUpdate: () => {},
-      onBookingRequested: (booking) => {
+      onBookingRequested: () => {
+        // The global IncomingBookingPopup (mounted in RootNavigator) is the
+        // one visible surface for a new request - this just keeps the
+        // badge count in sync, no second alert for the same event.
         setPendingBookingCount((c) => c + 1);
-        Alert.alert("New ride request", `A passenger wants to book ${booking.vehicleRegistrationNumber}.`);
       },
       onBookingCancelled: () => loadPendingBookingCount(),
     },

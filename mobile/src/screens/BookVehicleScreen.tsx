@@ -46,8 +46,20 @@ export default function BookVehicleScreen({ route, navigation }: any) {
       navigation.replace("WaitingForDriver", { bookingId: booking.id });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        Alert.alert("Request already pending", "You already have a pending request on this vehicle.", [
-          { text: "OK", onPress: () => navigation.navigate("MyBookings") },
+        let existingId: string | undefined;
+        try {
+          existingId = (JSON.parse(err.message) as { id?: string }).id;
+        } catch {
+          existingId = undefined;
+        }
+        Alert.alert("Already have an active booking", "Finish or cancel your current booking before requesting a new one.", [
+          {
+            text: "OK",
+            onPress: () =>
+              existingId
+                ? navigation.replace("WaitingForDriver", { bookingId: existingId })
+                : navigation.navigate("MyBookings"),
+          },
         ]);
         return;
       }

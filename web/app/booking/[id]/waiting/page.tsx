@@ -159,14 +159,23 @@ export default function WaitingForDriverPage() {
   }
 
   if (booking.status === "Accepted" || booking.status === "Completed") {
+    const rideStarted = booking.status === "Completed" || booking.otpVerified;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 px-6 text-center">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-4xl">✅</div>
-        <h1 className="text-xl font-extrabold text-slate-800">Driver confirmed!</h1>
+        <h1 className="text-xl font-extrabold text-slate-800">
+          {rideStarted ? "Ride in progress" : "Driver confirmed!"}
+        </h1>
         <p className="text-sm text-slate-500">
           {booking.vehicleRegistrationNumber} is on the way.
           {booking.driverPhone && <> Call {booking.driverPhone} to coordinate.</>}
         </p>
+        {!rideStarted && booking.otpCode && (
+          <div className="mt-1 rounded-2xl bg-accent-light px-6 py-4">
+            <p className="text-xs font-semibold text-accent">Share this code with your driver to start the ride</p>
+            <p className="mt-1 text-3xl font-extrabold tracking-[0.3em] text-accent-dark">{booking.otpCode}</p>
+          </div>
+        )}
         <div className="mt-2 flex gap-3">
           <Link
             href={`/vehicle/${booking.vehicleId}`}

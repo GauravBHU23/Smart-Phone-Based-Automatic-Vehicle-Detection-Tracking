@@ -29,7 +29,13 @@ public class BookingsController : ControllerBase
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
 
-    private static BookingResponse ToResponse(Booking b, bool includePassengerPhone, bool includeDriverPhone) => new(
+    // includeOtp must only ever be true on a response that goes directly and
+    // exclusively to the passenger's own authenticated request (GetMyBookings,
+    // CancelBooking's own-passenger read). It must be false on every SignalR
+    // broadcast, since those go to the whole vehicle-{id} group - which can
+    // include the driver - and the OTP is only meant to be read aloud by the
+    // passenger in person, never machine-readable by the driver's own client.
+    private static BookingResponse ToResponse(Booking b, bool includePassengerPhone, bool includeDriverPhone, bool includeOtp = false) => new(
         b.Id,
         b.VehicleId,
         b.Vehicle!.RegistrationNumber,
@@ -44,6 +50,8 @@ public class BookingsController : ControllerBase
         b.FromLatitude,
         b.FromLongitude,
         b.Note,
+        includeOtp ? b.OtpCode : null,
+        b.OtpVerifiedAt is not null,
         b.CreatedAt,
         b.RespondedAt
     );
@@ -60,8 +68,9 @@ public class BookingsController : ControllerBase
             .ToListAsync();
 
         // Passenger-facing: never show their own phone back to them, but do
-        // surface the driver's once the booking is mutually accepted.
-        return Ok(bookings.Select(b => ToResponse(b, includePassengerPhone: false, includeDriverPhone: true)).ToList());
+        // surface the driver's once the booking is mutually accepted, and
+        // the OTP they need to share with that driver in person.
+        return Ok(bookings.Select(b => ToResponse(b, includePassengerPhone: false, includeDriverPhone: true, includeOtp: true)).ToList());
     }
 
     [HttpPost("{bookingId:guid}/cancel")]
@@ -79,7 +88,7 @@ public class BookingsController : ControllerBase
         // the driver already acted on it.
         if (booking.Status == BookingStatus.Cancelled) return NoContent();
         if (booking.Status != BookingStatus.Pending)
-            return Conflict(ToResponse(booking, includePassengerPhone: false, includeDriverPhone: true));
+            return Conflict(ToResponse(booking, includePassengerPhone: false, includeDriverPhone: true, includeOtp: true));
 
         booking.Status = BookingStatus.Cancelled;
         booking.RespondedAt = DateTime.UtcNow;
@@ -103,7 +112,8 @@ public class BookingsController : ControllerBase
             .ToListAsync();
 
         // Driver-facing: show the passenger's phone so they can actually
-        // coordinate the ride (no in-app chat exists).
+        // coordinate the ride (no in-app chat exists). Never the OTP - the
+        // driver has to ask the passenger for it in person.
         return Ok(bookings.Select(b => ToResponse(b, includePassengerPhone: true, includeDriverPhone: false)).ToList());
     }
 
@@ -124,9 +134,11 @@ public class BookingsController : ControllerBase
         // CheckDestinationArrival's DestinationReachedAt flip. Two concurrent
         // accept attempts (double-tap, driver on two devices) must not both
         // "win"; only the request that actually flips Pending -> Accepted
-        // proceeds to notify.
+        // proceeds to notify. The 4-digit OTP is generated in the same
+        // atomic step so it only ever exists once the accept has truly won.
+        var otpCode = Random.Shared.Next(1000, 10000).ToString();
         var rowsUpdated = await _db.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE \"Bookings\" SET \"Status\" = 'Accepted', \"RespondedAt\" = {DateTime.UtcNow} WHERE \"Id\" = {booking.Id} AND \"Status\" = 'Pending'"
+            $"UPDATE \"Bookings\" SET \"Status\" = 'Accepted', \"RespondedAt\" = {DateTime.UtcNow}, \"OtpCode\" = {otpCode} WHERE \"Id\" = {booking.Id} AND \"Status\" = 'Pending'"
         );
 
         if (rowsUpdated == 0)
@@ -137,7 +149,11 @@ public class BookingsController : ControllerBase
 
         booking.Status = BookingStatus.Accepted;
         booking.RespondedAt = DateTime.UtcNow;
+        booking.OtpCode = otpCode;
 
+        // Never includeOtp here - this broadcast reaches everyone in the
+        // vehicle group, including the driver who just accepted. The
+        // passenger picks up the real code from their own GetMyBookings poll.
         await _hub.Clients.Group(TrackingHub.VehicleGroup(booking.VehicleId))
             .SendAsync("BookingAccepted", ToResponse(booking, includePassengerPhone: true, includeDriverPhone: true));
 
@@ -184,6 +200,38 @@ public class BookingsController : ControllerBase
             await _push.SendAsync(new[] { passengerToken }, "Ride request declined",
                 $"{booking.Vehicle!.RegistrationNumber} couldn't take your ride request.", new { bookingId = booking.Id });
         }
+
+        return Ok(ToResponse(booking, includePassengerPhone: true, includeDriverPhone: false));
+    }
+
+    [HttpPost("{bookingId:guid}/verify-otp")]
+    [Authorize(Roles = "Driver")]
+    public async Task<ActionResult<BookingResponse>> VerifyOtp(Guid bookingId, VerifyOtpRequest request)
+    {
+        var booking = await _db.Bookings
+            .Include(b => b.Vehicle).ThenInclude(v => v!.Driver)
+            .Include(b => b.Passenger)
+            .SingleOrDefaultAsync(b => b.Id == bookingId && b.Vehicle!.DriverId == CurrentUserId);
+        if (booking is null) return NotFound();
+
+        if (booking.Status != BookingStatus.Accepted)
+            return Conflict(ToResponse(booking, includePassengerPhone: true, includeDriverPhone: false));
+
+        // Idempotent: a double-tap of "Start ride" after a successful verify
+        // must not error out.
+        if (booking.OtpVerifiedAt is not null)
+            return Ok(ToResponse(booking, includePassengerPhone: true, includeDriverPhone: false));
+
+        if (booking.OtpCode != request.Otp)
+            return BadRequest("Incorrect code.");
+
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE \"Bookings\" SET \"OtpVerifiedAt\" = {DateTime.UtcNow} WHERE \"Id\" = {booking.Id} AND \"OtpVerifiedAt\" IS NULL"
+        );
+        booking.OtpVerifiedAt = DateTime.UtcNow;
+
+        await _hub.Clients.Group(TrackingHub.VehicleGroup(booking.VehicleId))
+            .SendAsync("BookingOtpVerified", ToResponse(booking, includePassengerPhone: true, includeDriverPhone: true));
 
         return Ok(ToResponse(booking, includePassengerPhone: true, includeDriverPhone: false));
     }

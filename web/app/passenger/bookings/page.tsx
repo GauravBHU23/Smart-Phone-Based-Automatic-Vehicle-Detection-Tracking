@@ -124,6 +124,11 @@ export default function PassengerBookingsPage() {
               {b.status === "Accepted" && b.driverPhone && (
                 <p className="mt-1.5 text-[13px] font-semibold text-slate-700">Driver phone: {b.driverPhone}</p>
               )}
+              {b.status === "Accepted" && !b.otpVerified && b.otpCode && (
+                <p className="mt-1.5 text-[13px] font-bold text-accent-dark">
+                  Your OTP: <span className="tracking-[0.2em]">{b.otpCode}</span> — share with your driver to start the ride
+                </p>
+              )}
               {(b.fromLocation || b.toLocation) && (
                 <p className="mt-1.5 text-[13px] text-slate-600">
                   {b.fromLocation ?? "—"} → {b.toLocation ?? "—"}

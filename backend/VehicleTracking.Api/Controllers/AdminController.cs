@@ -138,7 +138,11 @@ public class AdminController : ControllerBase
         return Ok(bookings.Select(b => ToBookingResponse(b)).ToList());
     }
 
-    private static BookingResponse ToBookingResponse(Booking b) => new(
+    // includeOtp defaults to true since this helper's primary caller is the
+    // admin moderation listing, which always shows everything. The one
+    // SignalR broadcast call site explicitly passes false, since that
+    // reaches the whole vehicle group, not just moderators.
+    private static BookingResponse ToBookingResponse(Booking b, bool includeOtp = true) => new(
         b.Id,
         b.VehicleId,
         b.Vehicle!.RegistrationNumber,
@@ -153,6 +157,8 @@ public class AdminController : ControllerBase
         b.FromLatitude,
         b.FromLongitude,
         b.Note,
+        includeOtp ? b.OtpCode : null,
+        b.OtpVerifiedAt is not null,
         b.CreatedAt,
         b.RespondedAt
     );
@@ -230,8 +236,10 @@ public class AdminController : ControllerBase
 
                 foreach (var booking in completedBookings)
                 {
+                    // Never the full admin-shaped response here - this reaches
+                    // everyone in the vehicle group, not just moderators.
                     await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId))
-                        .SendAsync("BookingCompleted", ToBookingResponse(booking));
+                        .SendAsync("BookingCompleted", ToBookingResponse(booking, includeOtp: false));
                 }
             }
         }

@@ -27,6 +27,9 @@ public class Booking
     public double? FromLongitude { get; set; }
     public string? Note { get; set; }
 
+    public string? OtpCode { get; set; }
+    public DateTime? OtpVerifiedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? RespondedAt { get; set; }
 }
