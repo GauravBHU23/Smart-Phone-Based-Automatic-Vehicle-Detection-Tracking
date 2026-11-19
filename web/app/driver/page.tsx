@@ -361,9 +361,9 @@ export default function DriverPage() {
               </button>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5">
-              <span className={`h-2 w-2 rounded-full ${tracking ? "animate-pulse bg-green-400" : "bg-white/40"}`} />
+          <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
+            <div className="flex w-full items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5 lg:w-auto">
+              <span className={`h-2 w-2 flex-shrink-0 rounded-full ${tracking ? "animate-pulse bg-green-400" : "bg-white/40"}`} />
               <span className="text-[13px] font-medium text-white">
                 {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
               </span>
@@ -371,7 +371,7 @@ export default function DriverPage() {
             {token && (
               <Link
                 href="/driver/bookings"
-                className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20"
+                className="flex w-full items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20 lg:w-auto"
               >
                 📋 {pendingBookingCount > 0 ? `${pendingBookingCount} new` : "Ride requests"}
               </Link>
@@ -379,7 +379,7 @@ export default function DriverPage() {
             {token && verificationStatus && verificationStatus !== "Approved" && (
               <Link
                 href="/driver/verification"
-                className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-400/90 px-3 py-1.5 text-[13px] font-semibold text-amber-950 transition hover:bg-amber-400"
+                className="flex w-full items-center gap-1.5 rounded-2xl bg-amber-400/90 px-3 py-1.5 text-[13px] font-semibold text-amber-950 transition hover:bg-amber-400 lg:w-auto"
               >
                 🪪{" "}
                 {verificationStatus === "Pending"
@@ -392,7 +392,7 @@ export default function DriverPage() {
             {token && verificationStatus === "Approved" && (
               <Link
                 href="/driver/verification"
-                className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20"
+                className="flex w-full items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20 lg:w-auto"
               >
                 🪪 Verified
               </Link>
