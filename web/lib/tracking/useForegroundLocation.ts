@@ -15,6 +15,14 @@ export function useForegroundLocation(token: string | null, vehicleId: string | 
   const [lastPingError, setLastPingError] = useState<string | null>(null);
   const trackingRef = useRef({ token, vehicleId });
   trackingRef.current = { token, vehicleId };
+  // Guards against overlapping pings: on a slow GPS fix or flaky network, a
+  // single ping can still be in flight when the next 5s tick fires. Starting
+  // another one on top makes things worse, not better - it competes for the
+  // same GPS radio and bandwidth, and can turn one slow ping into several
+  // slow ones stacking up, which is itself a real contributor to the
+  // "location isn't reaching the server" staleness warning firing even
+  // though pings are still happening, just arriving late.
+  const pingInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!tracking) {
@@ -24,6 +32,8 @@ export function useForegroundLocation(token: string | null, vehicleId: string | 
     }
 
     function postOnce() {
+      if (pingInFlightRef.current) return;
+
       const { token: currentToken, vehicleId: currentVehicleId } = trackingRef.current;
       if (!currentToken || !currentVehicleId) return;
 
@@ -31,6 +41,8 @@ export function useForegroundLocation(token: string | null, vehicleId: string | 
         setLastPingError("Geolocation is not supported in this browser.");
         return;
       }
+
+      pingInFlightRef.current = true;
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -50,10 +62,13 @@ export function useForegroundLocation(token: string | null, vehicleId: string | 
             const message = err instanceof Error ? err.message : String(err);
             console.warn("Failed to post location:", message);
             setLastPingError(message);
+          } finally {
+            pingInFlightRef.current = false;
           }
         },
         (geoErr) => {
           setLastPingError(geoErr.message);
+          pingInFlightRef.current = false;
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );

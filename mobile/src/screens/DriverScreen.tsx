@@ -389,22 +389,6 @@ export default function DriverScreen() {
               {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
             </Text>
           </View>
-          {verificationStatus && verificationStatus !== "Approved" && (
-            <TouchableOpacity
-              style={[styles.bookingsPill, styles.verificationPill]}
-              onPress={() => navigation.navigate("DriverVerification")}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.verificationPillText}>
-                🪪{" "}
-                {verificationStatus === "Pending"
-                  ? "Verification pending"
-                  : verificationStatus === "Rejected"
-                    ? "Verification rejected"
-                    : "Get verified"}
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
       </LinearGradient>
 
@@ -737,16 +721,6 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.4)" },
   statusDotLive: { backgroundColor: "#4ade80" },
   statusText: { color: "#fff", fontSize: 13, fontWeight: "500" },
-  bookingsPill: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    alignSelf: "stretch",
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 16,
-  },
-  bookingsPillText: { color: "#fff", fontSize: 13, fontWeight: "600", textAlign: "center", flex: 1 },
-  verificationPill: { backgroundColor: "rgba(251,191,36,0.9)" },
-  verificationPillText: { color: "#451a03", fontSize: 13, fontWeight: "700", textAlign: "center", flex: 1 },
   staleWarning: {
     flexDirection: "row",
     alignItems: "center",

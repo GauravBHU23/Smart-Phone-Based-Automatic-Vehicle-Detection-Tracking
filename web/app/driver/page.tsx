@@ -370,26 +370,11 @@ export default function DriverPage() {
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
-            <div className="flex w-full items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5 lg:w-auto">
-              <span className={`h-2 w-2 flex-shrink-0 rounded-full ${tracking ? "animate-pulse bg-green-400" : "bg-white/40"}`} />
-              <span className="text-[13px] font-medium text-white">
-                {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
-              </span>
-            </div>
-            {token && verificationStatus && verificationStatus !== "Approved" && (
-              <Link
-                href="/driver/verification"
-                className="flex w-full items-center gap-1.5 rounded-2xl bg-amber-400/90 px-3 py-1.5 text-[13px] font-semibold text-amber-950 transition hover:bg-amber-400 lg:w-auto"
-              >
-                🪪{" "}
-                {verificationStatus === "Pending"
-                  ? "Verification pending"
-                  : verificationStatus === "Rejected"
-                    ? "Verification rejected — resubmit"
-                    : "Get verified"}
-              </Link>
-            )}
+          <div className="flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5">
+            <span className={`h-2 w-2 flex-shrink-0 rounded-full ${tracking ? "animate-pulse bg-green-400" : "bg-white/40"}`} />
+            <span className="text-[13px] font-medium text-white">
+              {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
+            </span>
           </div>
         </div>
       </div>
