@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
+  Modal,
   Platform,
   StyleSheet,
   Text,
@@ -36,6 +38,8 @@ export default function DriverScreen() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
   const [verificationStatus, setVerificationStatus] = useState<DriverVerificationStatus | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [regNumber, setRegNumber] = useState("");
   const [vehicleType, setVehicleType] = useState<VehicleType>("Bus");
@@ -138,7 +142,10 @@ export default function DriverScreen() {
     if (!token) return;
     verificationApi
       .getStatus(token)
-      .then((status) => setVerificationStatus(status.status))
+      .then((status) => {
+        setVerificationStatus(status.status);
+        setProfilePhotoUrl(status.profilePhotoUrl);
+      })
       .catch((err) => console.warn("Failed to load verification status:", err));
   }, [token]);
 
@@ -364,14 +371,19 @@ export default function DriverScreen() {
       <StatusBar style="dark" />
       <LinearGradient colors={["#1e3a8a", "#2563eb"]} style={styles.header}>
         <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.greeting}>Welcome back</Text>
-            <Text style={styles.title}>{name}</Text>
+          <View style={styles.headerTopLeft}>
+            <TouchableOpacity style={styles.avatarButton} onPress={() => setMenuOpen(true)} activeOpacity={0.7}>
+              {profilePhotoUrl ? (
+                <Image source={{ uri: profilePhotoUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarIcon}>👤</Text>
+              )}
+            </TouchableOpacity>
+            <View>
+              <Text style={styles.greeting}>Welcome back</Text>
+              <Text style={styles.title}>{name}</Text>
+            </View>
           </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={confirmSignOut} activeOpacity={0.7}>
-            <Text style={styles.logoutIcon}>⏻</Text>
-            <Text style={styles.logout}>Log out</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.statusRow}>
@@ -381,15 +393,6 @@ export default function DriverScreen() {
               {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.bookingsPill}
-            onPress={() => navigation.navigate("MyBookings")}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.bookingsPillText}>
-              📋 {pendingBookingCount > 0 ? `${pendingBookingCount} new` : "Ride requests"}
-            </Text>
-          </TouchableOpacity>
           {verificationStatus && verificationStatus !== "Approved" && (
             <TouchableOpacity
               style={[styles.bookingsPill, styles.verificationPill]}
@@ -406,17 +409,78 @@ export default function DriverScreen() {
               </Text>
             </TouchableOpacity>
           )}
-          {verificationStatus === "Approved" && (
-            <TouchableOpacity
-              style={styles.bookingsPill}
-              onPress={() => navigation.navigate("DriverVerification")}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.bookingsPillText}>🪪 Verified</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </LinearGradient>
+
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setMenuOpen(false)}>
+          <TouchableOpacity style={styles.menuDrawer} activeOpacity={1} onPress={() => {}}>
+            <LinearGradient colors={["#1e3a8a", "#2563eb"]} style={styles.menuHeader}>
+              <View style={styles.menuAvatar}>
+                {profilePhotoUrl ? (
+                  <Image source={{ uri: profilePhotoUrl }} style={styles.avatarImage} />
+                ) : (
+                  <Text style={styles.menuAvatarIcon}>👤</Text>
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuName}>{name}</Text>
+                {verificationStatus === "Approved" && <Text style={styles.menuVerifiedTag}>🪪 Verified driver</Text>}
+              </View>
+            </LinearGradient>
+
+            <View style={styles.menuBody}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  navigation.navigate("MyBookings");
+                }}
+              >
+                <Text style={styles.menuItemIcon}>📋</Text>
+                <Text style={styles.menuItemText}>Ride requests</Text>
+                {pendingBookingCount > 0 && (
+                  <View style={styles.menuBadge}>
+                    <Text style={styles.menuBadgeText}>{pendingBookingCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  navigation.navigate("DriverVerification");
+                }}
+              >
+                <Text style={styles.menuItemIcon}>🪪</Text>
+                <Text style={styles.menuItemText}>
+                  {verificationStatus === "Approved"
+                    ? "Verification"
+                    : verificationStatus === "Pending"
+                      ? "Verification (pending)"
+                      : verificationStatus === "Rejected"
+                        ? "Verification (rejected)"
+                        : "Get verified"}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  confirmSignOut();
+                }}
+              >
+                <Text style={[styles.menuItemIcon, { color: "#dc2626" }]}>⏻</Text>
+                <Text style={[styles.menuItemText, { color: "#dc2626" }]}>Log out</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {tracking && locationStale && (
         <View style={styles.staleWarning}>
@@ -635,22 +699,23 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: 16,
   },
+  headerTopLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatarButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImage: { width: "100%", height: "100%" },
+  avatarIcon: { fontSize: 20 },
   greeting: { color: "rgba(255,255,255,0.75)", fontSize: 13 },
   title: { color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  logoutIcon: { color: "#fff", fontSize: 14 },
-  logout: { color: "#fff", fontWeight: "600", fontSize: 13 },
   statusRow: { flexDirection: "column", gap: 8 },
   statusPill: {
     flexDirection: "row",
@@ -804,4 +869,26 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 40, marginBottom: 10 },
   empty: { textAlign: "center", color: "#475569", fontSize: 16, fontWeight: "600" },
   emptySub: { textAlign: "center", color: "#94a3b8", fontSize: 13, marginTop: 4 },
+  menuOverlay: { flex: 1, flexDirection: "row", backgroundColor: "rgba(15,23,42,0.5)" },
+  menuDrawer: { width: "82%", maxWidth: 320, backgroundColor: "#fff", height: "100%" },
+  menuHeader: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingVertical: 24 },
+  menuAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  menuAvatarIcon: { fontSize: 28 },
+  menuName: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  menuVerifiedTag: { color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "600", marginTop: 2 },
+  menuBody: { flex: 1, paddingTop: 8, paddingHorizontal: 10 },
+  menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, paddingVertical: 14, borderRadius: 12 },
+  menuItemIcon: { fontSize: 18 },
+  menuItemText: { flex: 1, fontSize: 15, fontWeight: "600", color: "#334155" },
+  menuBadge: { backgroundColor: "#2563eb", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  menuBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  menuDivider: { height: 1, backgroundColor: "#f1f5f9", marginVertical: 8, marginHorizontal: 12 },
 });

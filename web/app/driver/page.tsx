@@ -81,6 +81,8 @@ export default function DriverPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
   const [verificationStatus, setVerificationStatus] = useState<DriverVerificationStatus | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [deleteConfirmVehicle, setDeleteConfirmVehicle] = useState<Vehicle | null>(null);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
@@ -124,7 +126,10 @@ export default function DriverPage() {
     if (!token) return;
     verificationApi
       .getStatus(token)
-      .then((status) => setVerificationStatus(status.status))
+      .then((status) => {
+        setVerificationStatus(status.status);
+        setProfilePhotoUrl(status.profilePhotoUrl);
+      })
       .catch((err) => console.warn("Failed to load verification status:", err));
   }, [token]);
 
@@ -348,18 +353,26 @@ export default function DriverPage() {
       <div className="rounded-b-3xl bg-gradient-to-br from-accent-dark to-accent px-5 pb-5 pt-4 lg:rounded-none lg:px-10 lg:pb-8 lg:pt-6">
         <div className="mx-auto max-w-6xl">
           <div className="mb-4 flex items-start justify-between">
-            <div>
-              <p className="text-[13px] text-white/75">{token ? "Welcome back" : "Logged out"}</p>
-              <p className="mt-0.5 text-2xl font-bold text-white lg:text-3xl">{token ? name : "Still sharing location"}</p>
+            <div className="flex items-center gap-3">
+              {token && (
+                <button
+                  onClick={() => setMenuOpen(true)}
+                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 transition hover:bg-white/25"
+                  aria-label="Open menu"
+                >
+                  {profilePhotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={profilePhotoUrl} alt={name ?? "Profile"} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-lg">👤</span>
+                  )}
+                </button>
+              )}
+              <div>
+                <p className="text-[13px] text-white/75">{token ? "Welcome back" : "Logged out"}</p>
+                <p className="mt-0.5 text-2xl font-bold text-white lg:text-3xl">{token ? name : "Still sharing location"}</p>
+              </div>
             </div>
-            {token && (
-              <button
-                onClick={() => setLogoutConfirmOpen(true)}
-                className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-white/25"
-              >
-                <span>⏻</span> Log out
-              </button>
-            )}
           </div>
           <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
             <div className="flex w-full items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5 lg:w-auto">
@@ -368,14 +381,6 @@ export default function DriverPage() {
                 {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
               </span>
             </div>
-            {token && (
-              <Link
-                href="/driver/bookings"
-                className="flex w-full items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20 lg:w-auto"
-              >
-                📋 {pendingBookingCount > 0 ? `${pendingBookingCount} new` : "Ride requests"}
-              </Link>
-            )}
             {token && verificationStatus && verificationStatus !== "Approved" && (
               <Link
                 href="/driver/verification"
@@ -387,14 +392,6 @@ export default function DriverPage() {
                   : verificationStatus === "Rejected"
                     ? "Verification rejected — resubmit"
                     : "Get verified"}
-              </Link>
-            )}
-            {token && verificationStatus === "Approved" && (
-              <Link
-                href="/driver/verification"
-                className="flex w-full items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-white/20 lg:w-auto"
-              >
-                🪪 Verified
               </Link>
             )}
           </div>
@@ -612,6 +609,71 @@ export default function DriverPage() {
           </div>
         </div>
       </div>
+
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex bg-slate-900/50" onClick={() => setMenuOpen(false)}>
+          <div
+            className="flex h-full w-[82%] max-w-[320px] flex-col bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 bg-gradient-to-br from-accent-dark to-accent px-5 py-6">
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15">
+                {profilePhotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profilePhotoUrl} alt={name ?? "Profile"} className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-3xl">👤</span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-lg font-bold text-white">{name}</p>
+                {verificationStatus === "Approved" && <p className="text-[12px] font-medium text-white/80">🪪 Verified driver</p>}
+              </div>
+            </div>
+
+            <nav className="flex flex-1 flex-col gap-1 p-3">
+              <Link
+                href="/driver/bookings"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                📋 <span className="flex-1">Ride requests</span>
+                {pendingBookingCount > 0 && (
+                  <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-white">{pendingBookingCount}</span>
+                )}
+              </Link>
+              <Link
+                href="/driver/verification"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                🪪{" "}
+                <span className="flex-1">
+                  {verificationStatus === "Approved"
+                    ? "Verification"
+                    : verificationStatus === "Pending"
+                      ? "Verification (pending)"
+                      : verificationStatus === "Rejected"
+                        ? "Verification (rejected)"
+                        : "Get verified"}
+                </span>
+              </Link>
+
+              <div className="mt-auto border-t border-slate-100 pt-2">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setLogoutConfirmOpen(true);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold text-red-600 transition hover:bg-red-50"
+                >
+                  ⏻ <span>Log out</span>
+                </button>
+              </div>
+            </nav>
+          </div>
+        </div>
+      )}
 
       <LogoutConfirmModal
         visible={logoutConfirmOpen}
