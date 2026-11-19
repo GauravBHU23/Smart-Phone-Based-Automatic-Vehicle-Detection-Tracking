@@ -225,169 +225,190 @@ export default function DriverPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-10">
-      <div className="rounded-b-3xl bg-gradient-to-br from-accent-dark to-accent px-5 pb-5 pt-4">
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <p className="text-[13px] text-white/75">Welcome back</p>
-            <p className="mt-0.5 text-2xl font-bold text-white">{name}</p>
+      <div className="rounded-b-3xl bg-gradient-to-br from-accent-dark to-accent px-5 pb-5 pt-4 lg:rounded-none lg:px-10 lg:pb-8 lg:pt-6">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-4 flex items-start justify-between">
+            <div>
+              <p className="text-[13px] text-white/75">Welcome back</p>
+              <p className="mt-0.5 text-2xl font-bold text-white lg:text-3xl">{name}</p>
+            </div>
+            <button
+              onClick={() => setLogoutConfirmOpen(true)}
+              className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-white/25"
+            >
+              <span>⏻</span> Log out
+            </button>
           </div>
-          <button
-            onClick={() => setLogoutConfirmOpen(true)}
-            className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-[13px] font-semibold text-white"
-          >
-            <span>⏻</span> Log out
-          </button>
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5">
-          <span className={`h-2 w-2 rounded-full ${tracking ? "bg-green-400" : "bg-white/40"}`} />
-          <span className="text-[13px] font-medium text-white">
-            {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
-          </span>
+          <div className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1.5">
+            <span className={`h-2 w-2 rounded-full ${tracking ? "animate-pulse bg-green-400" : "bg-white/40"}`} />
+            <span className="text-[13px] font-medium text-white">
+              {tracking ? `Live — sharing ${activeVehicle?.registrationNumber ?? "vehicle"} location` : "Not sharing location"}
+            </span>
+          </div>
         </div>
       </div>
 
-      {tracking && (
-        <div className="mx-4 mt-3 rounded-xl border border-blue-100 bg-accent-light p-3 text-[12px] text-accent-dark">
-          Keep this browser tab open while sharing your location — tracking stops if you close the tab.
-        </div>
-      )}
-
-      {tracking && locationStale && (
-        <div className="mx-4 mt-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-100 p-3">
-          <span>⚠️</span>
-          <p className="flex-1 text-xs font-medium text-amber-800">
-            Location isn&apos;t reaching the server — passengers may not see you moving. Check your internet connection.
-          </p>
-        </div>
-      )}
-
-      {notice && (
-        <div className="mx-4 mt-3 rounded-xl border border-slate-200 bg-white p-3 text-[13px] text-slate-600">{notice}</div>
-      )}
-
-      {!tracking && (
-        <div className="mx-4 -mt-3.5 rounded-2xl bg-white p-4 shadow-md">
-          <p className="mb-2.5 text-[13px] font-bold uppercase tracking-wide text-slate-500">Add a vehicle</p>
-          <input
-            type="text"
-            placeholder="Vehicle number (e.g. UP70AB1234)"
-            value={regNumber}
-            onChange={(e) => setRegNumber(e.target.value.toUpperCase())}
-            className="mb-3 w-full rounded-[10px] border border-slate-200 bg-slate-50 p-3.5 text-[15px] text-slate-800 outline-none focus:border-accent"
-          />
-          <div className="mb-3.5 flex flex-wrap gap-2">
-            {VEHICLE_TYPES.map((t) => (
-              <button
-                key={t}
-                onClick={() => setVehicleType(t)}
-                className={`rounded-2xl border px-3 py-1.5 text-[13px] ${
-                  vehicleType === t ? "border-accent bg-accent font-semibold text-white" : "border-blue-100 bg-accent-light text-accent"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={() => setShowRouteFields((v) => !v)}
-            className="mb-2.5 text-[13px] font-semibold text-accent"
-          >
-            {showRouteFields ? "− Hide route details" : "+ Add route (recommended)"}
-          </button>
-
-          {showRouteFields && (
-            <div className="mb-1">
-              <p className="mb-2.5 text-xs leading-relaxed text-slate-500">
-                Adding a route lets passengers and family see where this vehicle is headed and when it has arrived — just like a
-                train&apos;s status.
-              </p>
-              <div className="mb-3">
-                <PlaceAutocomplete value={fromPlace} onChange={setFromPlace} placeholder="From (e.g. Civil Lines)" allowNew />
-              </div>
-              <div className="mb-3">
-                <PlaceAutocomplete value={toPlace} onChange={setToPlace} placeholder="To (e.g. Naini)" allowNew />
-              </div>
-
-              {stops.map((stop, i) => (
-                <div key={stop.key} className="mb-3 flex items-center gap-2">
-                  <div className="flex-1">
-                    <PlaceAutocomplete
-                      value={stop.place}
-                      onChange={(place) => updateStopRow(stop.key, place)}
-                      placeholder={`Stop ${i + 1}`}
-                      allowNew
-                    />
-                  </div>
-                  <button
-                    onClick={() => removeStopRow(stop.key)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 font-bold text-red-600"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-
-              <button onClick={addStopRow} className="mb-1 text-[13px] font-semibold text-accent">
-                + Add a stop
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={handleAddVehicle}
-            disabled={!regNumber || adding}
-            className="mt-2 flex min-h-[46px] w-full items-center justify-center rounded-[10px] bg-green-600 font-bold text-white disabled:bg-slate-300"
-          >
-            {adding ? "Adding…" : "+ Add Vehicle"}
-          </button>
-        </div>
-      )}
-
-      <p className="mx-5 mb-2 mt-5 text-[13px] font-bold uppercase tracking-wide text-slate-500">Your vehicles</p>
-
-      <div className="mx-4 flex flex-col gap-2.5">
-        {vehicles.map((item) => {
-          const isLive = tracking && activeVehicleId === item.id;
-          return (
-            <div
-              key={item.id}
-              className={`flex items-center rounded-2xl bg-white p-3.5 shadow-sm ${isLive ? "border-[1.5px] border-green-400" : ""}`}
-            >
-              <div className="mr-3 flex h-11 w-11 items-center justify-center rounded-full bg-accent-light text-xl">
-                {vehicleEmoji(item.type)}
-              </div>
-              <div className="flex-1">
-                <p className="text-base font-bold text-slate-800">{item.registrationNumber}</p>
-                <p className="mt-0.5 text-[13px] text-slate-500">
-                  {item.type}
-                  {item.fromLocation && item.toLocation ? ` · ${item.fromLocation} → ${item.toLocation}` : ""}
-                </p>
-              </div>
-              {isLive ? (
-                <button onClick={stopTracking} className="rounded-[10px] bg-red-600 px-4 py-2.5 text-[13px] font-bold text-white">
-                  ■ Stop
-                </button>
-              ) : (
-                <button
-                  onClick={() => startTracking(item.id)}
-                  disabled={tracking}
-                  className="rounded-[10px] bg-accent px-4 py-2.5 text-[13px] font-bold text-white disabled:bg-slate-300"
-                >
-                  ▶ Start
-                </button>
-              )}
-            </div>
-          );
-        })}
-
-        {vehicles.length === 0 && (
-          <div className="mt-10 flex flex-col items-center px-10 text-center">
-            <div className="mb-2.5 text-4xl">🚐</div>
-            <p className="text-base font-semibold text-slate-600">No vehicles yet</p>
-            <p className="mt-1 text-[13px] text-slate-400">Add your vehicle above to start sharing your live location.</p>
+      <div className="mx-auto max-w-6xl lg:px-10">
+        {tracking && (
+          <div className="mx-4 mt-3 rounded-xl border border-blue-100 bg-accent-light p-3 text-[12px] text-accent-dark lg:mx-0">
+            Keep this browser tab open while sharing your location — tracking stops if you close the tab.
           </div>
         )}
+
+        {tracking && locationStale && (
+          <div className="mx-4 mt-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-100 p-3 lg:mx-0">
+            <span>⚠️</span>
+            <p className="flex-1 text-xs font-medium text-amber-800">
+              Location isn&apos;t reaching the server — passengers may not see you moving. Check your internet connection.
+            </p>
+          </div>
+        )}
+
+        {notice && (
+          <div className="mx-4 mt-3 rounded-xl border border-slate-200 bg-white p-3 text-[13px] text-slate-600 lg:mx-0">
+            {notice}
+          </div>
+        )}
+
+        <div className="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-6 lg:pt-6">
+          <div className="lg:order-2 lg:sticky lg:top-6">
+            {!tracking && (
+              <div className="mx-4 -mt-3.5 rounded-2xl bg-white p-4 shadow-md lg:mx-0 lg:mt-0 lg:shadow-lg">
+                <p className="mb-2.5 text-[13px] font-bold uppercase tracking-wide text-slate-500">Add a vehicle</p>
+                <input
+                  type="text"
+                  placeholder="Vehicle number (e.g. UP70AB1234)"
+                  value={regNumber}
+                  onChange={(e) => setRegNumber(e.target.value.toUpperCase())}
+                  className="mb-3 w-full rounded-[10px] border border-slate-200 bg-slate-50 p-3.5 text-[15px] text-slate-800 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                />
+                <div className="mb-3.5 flex flex-wrap gap-2">
+                  {VEHICLE_TYPES.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setVehicleType(t)}
+                      className={`rounded-2xl border px-3 py-1.5 text-[13px] transition ${
+                        vehicleType === t
+                          ? "border-accent bg-accent font-semibold text-white"
+                          : "border-blue-100 bg-accent-light text-accent hover:border-accent/50"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setShowRouteFields((v) => !v)}
+                  className="mb-2.5 text-[13px] font-semibold text-accent"
+                >
+                  {showRouteFields ? "− Hide route details" : "+ Add route (recommended)"}
+                </button>
+
+                {showRouteFields && (
+                  <div className="mb-1">
+                    <p className="mb-2.5 text-xs leading-relaxed text-slate-500">
+                      Adding a route lets passengers and family see where this vehicle is headed and when it has arrived — just like a
+                      train&apos;s status.
+                    </p>
+                    <div className="mb-3">
+                      <PlaceAutocomplete value={fromPlace} onChange={setFromPlace} placeholder="From (e.g. Civil Lines)" allowNew />
+                    </div>
+                    <div className="mb-3">
+                      <PlaceAutocomplete value={toPlace} onChange={setToPlace} placeholder="To (e.g. Naini)" allowNew />
+                    </div>
+
+                    {stops.map((stop, i) => (
+                      <div key={stop.key} className="mb-3 flex items-center gap-2">
+                        <div className="flex-1">
+                          <PlaceAutocomplete
+                            value={stop.place}
+                            onChange={(place) => updateStopRow(stop.key, place)}
+                            placeholder={`Stop ${i + 1}`}
+                            allowNew
+                          />
+                        </div>
+                        <button
+                          onClick={() => removeStopRow(stop.key)}
+                          className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 font-bold text-red-600 transition hover:bg-red-100"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+
+                    <button onClick={addStopRow} className="mb-1 text-[13px] font-semibold text-accent">
+                      + Add a stop
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleAddVehicle}
+                  disabled={!regNumber || adding}
+                  className="mt-2 flex min-h-[46px] w-full items-center justify-center rounded-[10px] bg-green-600 font-bold text-white transition hover:bg-green-700 disabled:bg-slate-300 disabled:hover:bg-slate-300"
+                >
+                  {adding ? "Adding…" : "+ Add Vehicle"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="lg:order-1">
+            <p className="mx-5 mb-2 mt-5 text-[13px] font-bold uppercase tracking-wide text-slate-500 lg:mx-0 lg:mt-0">
+              Your vehicles
+            </p>
+
+            <div className="mx-4 flex flex-col gap-2.5 lg:mx-0">
+              {vehicles.map((item) => {
+                const isLive = tracking && activeVehicleId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center rounded-2xl bg-white p-3.5 shadow-sm transition hover:shadow-md lg:p-5 ${
+                      isLive ? "border-[1.5px] border-green-400" : ""
+                    }`}
+                  >
+                    <div className="mr-3 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-accent-light text-xl lg:h-14 lg:w-14 lg:text-2xl">
+                      {vehicleEmoji(item.type)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-bold text-slate-800 lg:text-lg">{item.registrationNumber}</p>
+                      <p className="mt-0.5 truncate text-[13px] text-slate-500">
+                        {item.type}
+                        {item.fromLocation && item.toLocation ? ` · ${item.fromLocation} → ${item.toLocation}` : ""}
+                      </p>
+                    </div>
+                    {isLive ? (
+                      <button
+                        onClick={stopTracking}
+                        className="flex-shrink-0 rounded-[10px] bg-red-600 px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-red-700"
+                      >
+                        ■ Stop
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => startTracking(item.id)}
+                        disabled={tracking}
+                        className="flex-shrink-0 rounded-[10px] bg-accent px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300"
+                      >
+                        ▶ Start
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {vehicles.length === 0 && (
+                <div className="mt-10 flex flex-col items-center px-10 py-6 text-center lg:rounded-2xl lg:border lg:border-dashed lg:border-slate-300">
+                  <div className="mb-2.5 text-4xl">🚐</div>
+                  <p className="text-base font-semibold text-slate-600">No vehicles yet</p>
+                  <p className="mt-1 text-[13px] text-slate-400">Add your vehicle to start sharing your live location.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <LogoutConfirmModal

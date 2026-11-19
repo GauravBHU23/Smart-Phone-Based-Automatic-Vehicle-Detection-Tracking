@@ -194,12 +194,12 @@ export default function VehicleStatusPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-10">
-      <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-        <Link href="/search" className="p-1.5 text-2xl text-slate-800">
+      <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:px-8 lg:py-4">
+        <Link href="/search" className="p-1.5 text-2xl text-slate-800 transition hover:text-accent">
           ←
         </Link>
         <div className="flex-1">
-          <p className="text-lg font-bold text-slate-800">{status.registrationNumber}</p>
+          <p className="text-lg font-bold text-slate-800 lg:text-xl">{status.registrationNumber}</p>
           <p className="text-[13px] text-slate-500">
             {VEHICLE_ICONS[status.type] ?? "🚗"} {status.type}
           </p>
@@ -207,120 +207,130 @@ export default function VehicleStatusPage() {
         <button
           onClick={toggleWatch}
           disabled={togglingWatch}
-          className={`min-h-[32px] flex-shrink-0 rounded-2xl border px-3 py-2 text-xs font-bold ${
-            watching ? "border-accent bg-accent text-white" : "border-accent text-accent"
+          className={`min-h-[32px] flex-shrink-0 rounded-2xl border px-3 py-2 text-xs font-bold transition lg:px-4 lg:py-2.5 lg:text-sm ${
+            watching ? "border-accent bg-accent text-white hover:bg-accent-dark" : "border-accent text-accent hover:bg-accent-light"
           }`}
         >
           {togglingWatch ? "…" : watching ? "🔔 Alerts on" : "🔔 Get alerts"}
         </button>
       </div>
 
-      <div className="mx-auto max-w-2xl p-4">
+      <div className="mx-auto max-w-2xl p-4 lg:max-w-6xl lg:p-8">
         {watchMessage && (
-          <div className="mb-3.5 rounded-xl border border-blue-100 bg-accent-light p-3.5 text-[13px] text-accent-dark">
+          <div className="mb-3.5 rounded-xl border border-blue-100 bg-accent-light p-3.5 text-[13px] text-accent-dark lg:mb-6">
             {watchMessage}
           </div>
         )}
 
-        <div className={`mb-3.5 flex items-center gap-3 rounded-[14px] p-4 ${status.isActive ? "bg-green-100" : "bg-slate-100"}`}>
-          <div className={`h-2.5 w-2.5 rounded-full ${status.isActive ? "bg-green-600" : "bg-slate-400"}`} />
-          <div>
-            <p className="text-[15px] font-bold text-slate-800">
-              {status.isActive ? "Live — on the move" : "Not currently tracking"}
-            </p>
-            {status.isActive && (
-              <p className="mt-0.5 text-[13px] text-slate-600">
-                Last update {timeAgo(status.lastUpdatedAt)}
-                {status.speedKmh != null ? ` · ${Math.round(status.speedKmh)} km/h` : ""}
-              </p>
+        <div className="lg:grid lg:grid-cols-[1.3fr_1fr] lg:items-start lg:gap-6">
+          <div className="lg:sticky lg:top-6 lg:flex lg:flex-col lg:gap-6">
+            <div
+              className={`mb-3.5 flex items-center gap-3 rounded-[14px] p-4 lg:mb-0 ${status.isActive ? "bg-green-100" : "bg-slate-100"}`}
+            >
+              <div className={`h-2.5 w-2.5 rounded-full ${status.isActive ? "animate-pulse bg-green-600" : "bg-slate-400"}`} />
+              <div>
+                <p className="text-[15px] font-bold text-slate-800">
+                  {status.isActive ? "Live — on the move" : "Not currently tracking"}
+                </p>
+                {status.isActive && (
+                  <p className="mt-0.5 text-[13px] text-slate-600">
+                    Last update {timeAgo(status.lastUpdatedAt)}
+                    {status.speedKmh != null ? ` · ${Math.round(status.speedKmh)} km/h` : ""}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {mapCenter && (
+              <div className="mb-3.5 h-[280px] overflow-hidden rounded-[14px] bg-white shadow-sm lg:mb-0 lg:h-[440px] lg:shadow-md">
+                <LiveMap
+                  apiKey={GOOGLE_MAPS_API_KEY}
+                  center={mapCenter}
+                  markers={markers}
+                  path={routeCoordinates.length > 1 ? routeCoordinates : undefined}
+                />
+              </div>
+            )}
+
+            {(status.fromLocation || status.toLocation) && (
+              <div className="mb-3.5 rounded-[14px] bg-white p-4 shadow-sm lg:mb-0">
+                <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-400">Route</p>
+                <div className="flex items-center gap-2.5">
+                  <span className="flex-1 text-[15px] font-semibold text-slate-800">{status.fromLocation ?? "—"}</span>
+                  <span className="text-accent">→</span>
+                  <span className="flex-1 text-[15px] font-semibold text-slate-800">{status.toLocation ?? "—"}</span>
+                </div>
+              </div>
             )}
           </div>
-        </div>
 
-        <div className="mb-3.5 rounded-[14px] bg-white p-4 shadow-sm">
-          <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-400">Driver</p>
-          <p className="text-[17px] font-bold text-slate-800">{status.driverName}</p>
-        </div>
-
-        {(status.fromLocation || status.toLocation) && (
-          <div className="mb-3.5 rounded-[14px] bg-white p-4 shadow-sm">
-            <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-400">Route</p>
-            <div className="flex items-center gap-2.5">
-              <span className="flex-1 text-[15px] font-semibold text-slate-800">{status.fromLocation ?? "—"}</span>
-              <span className="text-accent">→</span>
-              <span className="flex-1 text-[15px] font-semibold text-slate-800">{status.toLocation ?? "—"}</span>
+          <div className="lg:flex lg:flex-col lg:gap-6">
+            <div className="mb-3.5 rounded-[14px] bg-white p-4 shadow-sm lg:mb-0">
+              <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-400">Driver</p>
+              <p className="text-[17px] font-bold text-slate-800">{status.driverName}</p>
             </div>
-          </div>
-        )}
 
-        {mapCenter && (
-          <div className="mb-3.5 h-[280px] overflow-hidden rounded-[14px] bg-white shadow-sm">
-            <LiveMap
-              apiKey={GOOGLE_MAPS_API_KEY}
-              center={mapCenter}
-              markers={markers}
-              path={routeCoordinates.length > 1 ? routeCoordinates : undefined}
-            />
-          </div>
-        )}
+            {stops.length > 0 && (
+              <div className="mb-3.5 rounded-[14px] bg-white p-4 shadow-sm lg:mb-0">
+                <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-400">Stops</p>
+                {stops.map((stop, i) => {
+                  const isPast = stop.reached && i < lastReachedIndex;
+                  const isCurrent = stop.reached && i === lastReachedIndex;
+                  return (
+                    <div key={`${stop.name}-${i}`} className="flex">
+                      <div className="flex w-6 flex-col items-center">
+                        <div
+                          className={`h-3 w-3 rounded-full border-2 ${
+                            isCurrent
+                              ? "border-green-600 bg-green-600"
+                              : isPast
+                              ? "border-accent bg-accent"
+                              : "border-slate-300 bg-slate-200"
+                          }`}
+                        />
+                        {i < stops.length - 1 && (
+                          <div className={`min-h-[24px] w-0.5 flex-1 ${isPast ? "bg-accent" : "bg-slate-200"}`} />
+                        )}
+                      </div>
+                      <div className="flex-1 pb-4 pl-2.5">
+                        <p className={`text-[15px] ${isCurrent ? "font-bold text-green-600" : "font-medium text-slate-800"}`}>
+                          {stop.name}
+                        </p>
+                        {isCurrent && <p className="mt-0.5 text-xs text-green-600">Vehicle is near here</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-        {stops.length > 0 && (
-          <div className="mb-3.5 rounded-[14px] bg-white p-4 shadow-sm">
-            <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-400">Stops</p>
-            {stops.map((stop, i) => {
-              const isPast = stop.reached && i < lastReachedIndex;
-              const isCurrent = stop.reached && i === lastReachedIndex;
-              return (
-                <div key={`${stop.name}-${i}`} className="flex">
-                  <div className="flex w-6 flex-col items-center">
-                    <div
-                      className={`h-3 w-3 rounded-full border-2 ${
-                        isCurrent
-                          ? "border-green-600 bg-green-600"
-                          : isPast
-                          ? "border-accent bg-accent"
-                          : "border-slate-300 bg-slate-200"
-                      }`}
-                    />
-                    {i < stops.length - 1 && (
-                      <div className={`min-h-[24px] w-0.5 flex-1 ${isPast ? "bg-accent" : "bg-slate-200"}`} />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-4 pl-2.5">
-                    <p className={`text-[15px] ${isCurrent ? "font-bold text-green-600" : "font-medium text-slate-800"}`}>
-                      {stop.name}
-                    </p>
-                    {isCurrent && <p className="mt-0.5 text-xs text-green-600">Vehicle is near here</p>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+            <div className="mb-3.5 rounded-[14px] bg-white p-4 shadow-sm lg:mb-0">
+              <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-400">Trip details</p>
+              <div className="flex justify-between py-1.5">
+                <span className="text-sm text-slate-500">Started</span>
+                <span className="text-sm font-semibold text-slate-800">
+                  {status.tripStartedAt ? new Date(status.tripStartedAt).toLocaleTimeString() : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-sm text-slate-500">Distance covered</span>
+                <span className="text-sm font-semibold text-slate-800">
+                  {status.distanceCoveredKm != null ? `${status.distanceCoveredKm} km` : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-sm text-slate-500">Current speed</span>
+                <span className="text-sm font-semibold text-slate-800">
+                  {status.speedKmh != null ? `${Math.round(status.speedKmh)} km/h` : "—"}
+                </span>
+              </div>
+            </div>
 
-        <div className="mb-3.5 rounded-[14px] bg-white p-4 shadow-sm">
-          <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-400">Trip details</p>
-          <div className="flex justify-between py-1.5">
-            <span className="text-sm text-slate-500">Started</span>
-            <span className="text-sm font-semibold text-slate-800">
-              {status.tripStartedAt ? new Date(status.tripStartedAt).toLocaleTimeString() : "—"}
-            </span>
-          </div>
-          <div className="flex justify-between py-1.5">
-            <span className="text-sm text-slate-500">Distance covered</span>
-            <span className="text-sm font-semibold text-slate-800">
-              {status.distanceCoveredKm != null ? `${status.distanceCoveredKm} km` : "—"}
-            </span>
-          </div>
-          <div className="flex justify-between py-1.5">
-            <span className="text-sm text-slate-500">Current speed</span>
-            <span className="text-sm font-semibold text-slate-800">
-              {status.speedKmh != null ? `${Math.round(status.speedKmh)} km/h` : "—"}
-            </span>
+            <p className="text-center text-xs text-slate-400 lg:text-left">
+              For driver safety, contact details aren&apos;t shown here.
+            </p>
           </div>
         </div>
-
-        <p className="text-center text-xs text-slate-400">For driver safety, contact details aren&apos;t shown here.</p>
       </div>
     </div>
   );
