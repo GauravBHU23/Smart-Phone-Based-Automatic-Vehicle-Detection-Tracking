@@ -144,7 +144,7 @@ export interface AdminStats {
   tripsAllTime: number;
 }
 
-export type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Cancelled";
+export type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Cancelled" | "Completed";
 
 export interface Booking {
   id: string;

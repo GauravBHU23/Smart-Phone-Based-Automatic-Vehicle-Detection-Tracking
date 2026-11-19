@@ -5,7 +5,8 @@ public enum BookingStatus
     Pending,
     Accepted,
     Rejected,
-    Cancelled
+    Cancelled,
+    Completed
 }
 
 public class Booking

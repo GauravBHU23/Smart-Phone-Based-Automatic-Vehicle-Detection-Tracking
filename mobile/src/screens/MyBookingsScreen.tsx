@@ -20,6 +20,7 @@ const STATUS_COLORS: Record<BookingStatus, { bg: string; text: string }> = {
   Accepted: { bg: "#dcfce7", text: "#16a34a" },
   Rejected: { bg: "#fee2e2", text: "#dc2626" },
   Cancelled: { bg: "#f1f5f9", text: "#64748b" },
+  Completed: { bg: "#dbeafe", text: "#1d4ed8" },
 };
 
 function timeAgo(iso: string): string {

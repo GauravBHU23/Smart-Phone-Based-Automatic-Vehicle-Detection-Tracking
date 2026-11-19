@@ -15,6 +15,7 @@ const STATUS_STYLES: Record<BookingStatus, string> = {
   Accepted: "bg-green-100 text-green-700",
   Rejected: "bg-red-100 text-red-700",
   Cancelled: "bg-slate-100 text-slate-500",
+  Completed: "bg-blue-100 text-blue-700",
 };
 
 function timeAgo(iso: string): string {

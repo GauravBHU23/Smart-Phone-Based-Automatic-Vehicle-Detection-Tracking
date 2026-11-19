@@ -303,7 +303,7 @@ public class VehiclesController : ControllerBase
         b.PassengerId,
         b.Passenger!.Name,
         includePassengerPhone ? b.Passenger!.Phone : null,
-        includeDriverPhone && b.Status == BookingStatus.Accepted ? b.Vehicle!.Driver?.Phone : null,
+        includeDriverPhone && (b.Status == BookingStatus.Accepted || b.Status == BookingStatus.Completed) ? b.Vehicle!.Driver?.Phone : null,
         b.Status,
         b.FromLocation,
         b.ToLocation,
@@ -449,7 +449,7 @@ public class VehiclesController : ControllerBase
     [Authorize(Roles = "Driver")]
     public async Task<IActionResult> StopTracking(Guid vehicleId)
     {
-        var vehicle = await _db.Vehicles.SingleOrDefaultAsync(v => v.Id == vehicleId && v.DriverId == CurrentUserId);
+        var vehicle = await _db.Vehicles.Include(v => v.Driver).SingleOrDefaultAsync(v => v.Id == vehicleId && v.DriverId == CurrentUserId);
         if (vehicle is null) return NotFound();
 
         vehicle.IsActive = false;
@@ -460,11 +460,43 @@ public class VehiclesController : ControllerBase
             .FirstOrDefaultAsync();
         if (openTrip is not null) openTrip.EndedAt = DateTime.UtcNow;
 
+        // The driver stopping is the natural real-world end of a ride — any
+        // booking this driver accepted for this vehicle is now actually over,
+        // not still "Accepted" forever. A booking still Pending here just
+        // never got answered in time and is left as-is (not auto-rejected —
+        // the driver may start again and still take it).
+        var acceptedBookingIds = await _db.Bookings
+            .Where(b => b.VehicleId == vehicleId && b.Status == BookingStatus.Accepted)
+            .Select(b => b.Id)
+            .ToListAsync();
+
+        if (acceptedBookingIds.Count > 0)
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE \"Bookings\" SET \"Status\" = 'Completed', \"RespondedAt\" = {DateTime.UtcNow} WHERE \"VehicleId\" = {vehicleId} AND \"Status\" = 'Accepted'"
+            );
+        }
+
         await _db.SaveChangesAsync();
 
         await _hub.Clients.Group("passengers").SendAsync("VehicleStopped", vehicleId);
         await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId)).SendAsync("VehicleStopped", vehicleId);
         await NotifyWatchers(vehicleId, "Tracking stopped", $"{vehicle.RegistrationNumber} has stopped sharing its location.");
+
+        if (acceptedBookingIds.Count > 0)
+        {
+            var completedBookings = await _db.Bookings
+                .Include(b => b.Vehicle).ThenInclude(v => v!.Driver)
+                .Include(b => b.Passenger)
+                .Where(b => acceptedBookingIds.Contains(b.Id))
+                .ToListAsync();
+
+            foreach (var booking in completedBookings)
+            {
+                await _hub.Clients.Group(TrackingHub.VehicleGroup(vehicleId))
+                    .SendAsync("BookingCompleted", ToBookingResponse(booking, includePassengerPhone: true, includeDriverPhone: true));
+            }
+        }
 
         return NoContent();
     }

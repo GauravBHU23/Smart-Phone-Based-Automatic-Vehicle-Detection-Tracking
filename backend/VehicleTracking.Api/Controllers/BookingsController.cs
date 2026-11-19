@@ -37,7 +37,7 @@ public class BookingsController : ControllerBase
         b.PassengerId,
         b.Passenger!.Name,
         includePassengerPhone ? b.Passenger!.Phone : null,
-        includeDriverPhone && b.Status == BookingStatus.Accepted ? b.Vehicle!.Driver?.Phone : null,
+        includeDriverPhone && (b.Status == BookingStatus.Accepted || b.Status == BookingStatus.Completed) ? b.Vehicle!.Driver?.Phone : null,
         b.Status,
         b.FromLocation,
         b.ToLocation,
