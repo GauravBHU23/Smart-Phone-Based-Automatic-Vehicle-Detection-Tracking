@@ -24,6 +24,26 @@ export interface Place {
   longitude: number | null;
 }
 
+/** A real-world place found via geocoding, not yet in our own Place directory. */
+export interface ExternalPlace {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface PlaceSearchResponse {
+  knownPlaces: Place[];
+  suggestedPlaces: ExternalPlace[];
+}
+
+/**
+ * What a PlaceAutocomplete field actually holds: either a place already in
+ * our directory, or one not yet saved — a free-typed name, or a real-world
+ * place picked from the geocoder (which carries known coordinates, unlike a
+ * free-typed name where coordinates are unknown until resolved separately).
+ */
+export type PlaceSelection = Place | { id: null; name: string; latitude?: number; longitude?: number };
+
 export interface Vehicle {
   id: string;
   registrationNumber: string;

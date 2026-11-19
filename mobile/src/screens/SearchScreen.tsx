@@ -10,11 +10,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "../api/client";
-import { vehicleApi } from "../api/endpoints";
+import { placeApi, vehicleApi } from "../api/endpoints";
 import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import PlaceAutocomplete from "../components/PlaceAutocomplete";
 import { useAuth } from "../context/AuthContext";
-import { Place, RouteSearchResult } from "../types";
+import { PlaceSelection, RouteSearchResult } from "../types";
 
 const VEHICLE_ICONS: Record<string, string> = {
   Bus: "🚌",
@@ -32,9 +32,10 @@ export default function SearchScreen({ navigation }: any) {
   const { token, name, signOut } = useAuth();
   const [mode, setMode] = useState<SearchMode>("number");
   const [regNumber, setRegNumber] = useState("");
-  const [fromPlace, setFromPlace] = useState<Place | { id: null; name: string } | null>(null);
-  const [toPlace, setToPlace] = useState<Place | { id: null; name: string } | null>(null);
+  const [fromPlace, setFromPlace] = useState<PlaceSelection | null>(null);
+  const [toPlace, setToPlace] = useState<PlaceSelection | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resolvingRoute, setResolvingRoute] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [routeResults, setRouteResults] = useState<RouteSearchResult[] | null>(null);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -63,13 +64,35 @@ export default function SearchScreen({ navigation }: any) {
     }
   }
 
+  // A place picked from the geocoded "Other places" suggestions has no
+  // Place-directory id yet (route search matches by id, not coordinates) —
+  // save it first so it gets a real one, the same find-or-create the backend
+  // already does for a freshly-registered vehicle's route.
+  async function resolvePlaceId(place: PlaceSelection): Promise<string | null> {
+    if (place.id) return place.id;
+    if (place.latitude == null || place.longitude == null) return null;
+    try {
+      const saved = await placeApi.resolve(place.name, place.latitude, place.longitude);
+      return saved.id;
+    } catch {
+      return null;
+    }
+  }
+
   async function handleSearchByRoute() {
-    if (!fromPlace?.id || !toPlace?.id) return;
+    if (!fromPlace || !toPlace) return;
     setLoading(true);
+    setResolvingRoute(true);
     setError(null);
     setRouteResults(null);
     try {
-      const results = await vehicleApi.searchByRoute(fromPlace.id, toPlace.id);
+      const [fromId, toId] = await Promise.all([resolvePlaceId(fromPlace), resolvePlaceId(toPlace)]);
+      setResolvingRoute(false);
+      if (!fromId || !toId) {
+        setError("Could not resolve one of the selected places. Please try selecting them again.");
+        return;
+      }
+      const results = await vehicleApi.searchByRoute(fromId, toId);
       setRouteResults(results);
       if (results.length === 0) {
         setError("No vehicles found on this route yet. Try different places, or check back later.");
@@ -78,11 +101,15 @@ export default function SearchScreen({ navigation }: any) {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+      setResolvingRoute(false);
     }
   }
 
   const canSearchByNumber = !!regNumber.trim() && !loading;
-  const canSearchByRoute = !!fromPlace?.id && !!toPlace?.id && !loading;
+  const canSearchByRoute =
+    !!fromPlace && (!!fromPlace.id || fromPlace.latitude != null) &&
+    !!toPlace && (!!toPlace.id || toPlace.latitude != null) &&
+    !loading;
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -182,7 +209,14 @@ export default function SearchScreen({ navigation }: any) {
             disabled={!canSearchByRoute}
             activeOpacity={0.85}
           >
-            {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.searchButtonText}>Find vehicles</Text>}
+            {loading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={styles.searchButtonText}>{resolvingRoute ? "Locating…" : "Searching…"}</Text>
+              </View>
+            ) : (
+              <Text style={styles.searchButtonText}>Find vehicles</Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -313,6 +347,7 @@ const styles = StyleSheet.create({
   },
   searchButtonDisabled: { backgroundColor: "#cbd5e1" },
   searchButtonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   errorBox: {
     marginTop: 16,
     marginHorizontal: 20,

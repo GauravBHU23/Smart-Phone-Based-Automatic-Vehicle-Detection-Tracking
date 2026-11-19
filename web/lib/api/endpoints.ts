@@ -6,6 +6,7 @@ import {
   AuthResponse,
   Booking,
   Place,
+  PlaceSearchResponse,
   RouteSearchResult,
   UserRole,
   Vehicle,
@@ -22,7 +23,9 @@ export const authApi = {
 };
 
 export const placeApi = {
-  search: (query: string) => api.get<Place[]>(`/api/places/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => api.get<PlaceSearchResponse>(`/api/places/search?q=${encodeURIComponent(query)}`),
+  resolve: (name: string, latitude?: number, longitude?: number) =>
+    api.post<Place>("/api/places/resolve", { name, latitude, longitude }),
 };
 
 export interface RegisterVehicleOptions {

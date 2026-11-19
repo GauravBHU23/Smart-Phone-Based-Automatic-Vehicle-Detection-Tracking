@@ -67,6 +67,20 @@ public record RegisterPushTokenRequest(string PushToken);
 
 public record PlaceDto(Guid Id, string Code, string Name, double? Latitude, double? Longitude);
 
+/// <summary>
+/// A place found via an external geocoder (OpenStreetMap Nominatim) that
+/// isn't in our own Place directory yet — no Id, since nothing has been
+/// persisted. The client passes Name/Latitude/Longitude straight through
+/// to vehicle registration or booking, where FindOrCreatePlace inserts it
+/// into the directory the first time it's actually used, exactly like a
+/// freely-typed new place already works.
+/// </summary>
+public record ExternalPlaceDto(string Name, double Latitude, double Longitude);
+
+public record PlaceSearchResponse(List<PlaceDto> KnownPlaces, List<ExternalPlaceDto> SuggestedPlaces);
+
+public record ResolvePlaceRequest(string Name, double? Latitude, double? Longitude);
+
 public record RouteSearchResultResponse(
     Guid Id,
     string RegistrationNumber,

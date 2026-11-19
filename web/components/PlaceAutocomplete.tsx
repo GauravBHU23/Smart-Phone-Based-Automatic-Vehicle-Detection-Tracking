@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { placeApi } from "../lib/api/endpoints";
-import { Place } from "../lib/types";
+import { ExternalPlace, Place, PlaceSelection } from "../lib/types";
 
 const DEBOUNCE_MS = 300;
+const MIN_QUERY_LENGTH_FOR_SUGGESTIONS = 3;
 
 export default function PlaceAutocomplete({
   value,
@@ -13,15 +14,16 @@ export default function PlaceAutocomplete({
   allowNew = false,
   bare = false,
 }: {
-  value: Place | { id: null; name: string } | null;
-  onChange: (place: Place | { id: null; name: string }) => void;
+  value: PlaceSelection | null;
+  onChange: (place: PlaceSelection) => void;
   placeholder: string;
   allowNew?: boolean;
   /** Omits the input's own border/background — use inside a parent that already provides them. */
   bare?: boolean;
 }) {
   const [query, setQuery] = useState(value?.name ?? "");
-  const [suggestions, setSuggestions] = useState<Place[]>([]);
+  const [knownPlaces, setKnownPlaces] = useState<Place[]>([]);
+  const [suggestedPlaces, setSuggestedPlaces] = useState<ExternalPlace[]>([]);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,7 +42,8 @@ export default function PlaceAutocomplete({
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!text.trim()) {
-      setSuggestions([]);
+      setKnownPlaces([]);
+      setSuggestedPlaces([]);
       setLoading(false);
       return;
     }
@@ -50,34 +53,53 @@ export default function PlaceAutocomplete({
       const requestId = ++requestIdRef.current;
       try {
         const results = await placeApi.search(text.trim());
-        if (requestId === requestIdRef.current) setSuggestions(results);
+        if (requestId === requestIdRef.current) {
+          setKnownPlaces(results.knownPlaces);
+          setSuggestedPlaces(results.suggestedPlaces);
+        }
       } catch {
-        if (requestId === requestIdRef.current) setSuggestions([]);
+        if (requestId === requestIdRef.current) {
+          setKnownPlaces([]);
+          setSuggestedPlaces([]);
+        }
       } finally {
         if (requestId === requestIdRef.current) setLoading(false);
       }
     }, DEBOUNCE_MS);
   }
 
-  function selectPlace(place: Place) {
+  function selectKnownPlace(place: Place) {
     setQuery(place.name);
-    setSuggestions([]);
+    setKnownPlaces([]);
+    setSuggestedPlaces([]);
     setFocused(false);
     onChange(place);
   }
 
+  function selectSuggestedPlace(place: ExternalPlace) {
+    setQuery(place.name);
+    setKnownPlaces([]);
+    setSuggestedPlaces([]);
+    setFocused(false);
+    onChange({ id: null, name: place.name, latitude: place.latitude, longitude: place.longitude });
+  }
+
   function selectNew() {
-    setSuggestions([]);
+    setKnownPlaces([]);
+    setSuggestedPlaces([]);
     setFocused(false);
     onChange({ id: null, name: query.trim() });
   }
 
   const trimmedQuery = query.trim();
-  const exactMatchExists = suggestions.some((s) => s.name.toLowerCase() === trimmedQuery.toLowerCase());
+  const exactMatchExists =
+    knownPlaces.some((p) => p.name.toLowerCase() === trimmedQuery.toLowerCase()) ||
+    suggestedPlaces.some((p) => p.name.toLowerCase() === trimmedQuery.toLowerCase());
   const showDropdown = focused && trimmedQuery.length > 0;
+  const tooShortForSuggestions = trimmedQuery.length > 0 && trimmedQuery.length < MIN_QUERY_LENGTH_FOR_SUGGESTIONS;
 
   return (
-    <div className="relative z-10">
+    <div className={`relative ${showDropdown ? "z-30" : "z-10"}`}>
       <input
         type="text"
         placeholder={placeholder}
@@ -96,21 +118,42 @@ export default function PlaceAutocomplete({
       )}
 
       {showDropdown && (
-        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[220px] overflow-y-auto rounded-[10px] bg-white shadow-xl">
-          {suggestions.length === 0 && !loading && (
-            <div className="px-3.5 py-3 text-[13px] text-slate-400">No matches yet</div>
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[280px] overflow-y-auto rounded-[10px] bg-white shadow-xl">
+          {knownPlaces.length === 0 && suggestedPlaces.length === 0 && !loading && (
+            <div className="px-3.5 py-3 text-[13px] text-slate-400">
+              {tooShortForSuggestions ? "Keep typing to search…" : "No matches yet"}
+            </div>
           )}
-          {suggestions.map((item) => (
+
+          {knownPlaces.map((item) => (
             <button
               key={item.id}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => selectPlace(item)}
+              onClick={() => selectKnownPlace(item)}
               className="flex w-full items-center justify-between border-b border-slate-100 px-3.5 py-3 text-left hover:bg-slate-50"
             >
               <span className="text-sm font-medium text-slate-800">{item.name}</span>
               <span className="text-[11px] font-bold text-slate-400">{item.code}</span>
             </button>
           ))}
+
+          {suggestedPlaces.length > 0 && (
+            <div className="bg-slate-50 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Other places
+            </div>
+          )}
+          {suggestedPlaces.map((item, i) => (
+            <button
+              key={`${item.name}-${i}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => selectSuggestedPlace(item)}
+              className="flex w-full items-center gap-2 border-b border-slate-100 px-3.5 py-3 text-left hover:bg-slate-50"
+            >
+              <span className="text-slate-300">📍</span>
+              <span className="text-sm font-medium text-slate-700">{item.name}</span>
+            </button>
+          ))}
+
           {allowNew && !exactMatchExists && !loading && (
             <button
               onMouseDown={(e) => e.preventDefault()}

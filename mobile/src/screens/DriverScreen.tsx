@@ -23,12 +23,11 @@ import LogoutConfirmModal from "../components/LogoutConfirmModal";
 import PlaceAutocomplete from "../components/PlaceAutocomplete";
 import { useAuth } from "../context/AuthContext";
 import { getLocationTaskHealth, startBackgroundTracking, stopBackgroundTracking } from "../tracking/locationTask";
-import { Place, Vehicle, VehicleType } from "../types";
+import { PlaceSelection, Vehicle, VehicleType } from "../types";
 
 const VEHICLE_TYPES: VehicleType[] = ["Bus", "Auto", "Taxi", "Bike", "Truck", "Ambulance", "Other"];
 const LOCATION_INTERVAL_MS = 5000;
 
-type PlaceSelection = Place | { id: null; name: string };
 let nextStopKey = 0;
 
 export default function DriverScreen() {
@@ -143,6 +142,11 @@ export default function DriverScreen() {
   // geocode it again client-side.
   async function resolveCoordinates(place: PlaceSelection | null): Promise<{ latitude?: number; longitude?: number }> {
     if (!place || place.id !== null) return {};
+    // A place picked from the "Other places" geocoded suggestions already
+    // carries real coordinates — no need to geocode it again.
+    if (place.latitude != null && place.longitude != null) {
+      return { latitude: place.latitude, longitude: place.longitude };
+    }
     try {
       const results = await Location.geocodeAsync(place.name);
       if (results.length > 0) return { latitude: results[0].latitude, longitude: results[0].longitude };

@@ -6,10 +6,10 @@ import { useState } from "react";
 import PlaceAutocomplete from "../../components/PlaceAutocomplete";
 import Spinner from "../../components/Spinner";
 import { ApiError } from "../../lib/api/client";
-import { vehicleApi } from "../../lib/api/endpoints";
+import { placeApi, vehicleApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { useToast } from "../../lib/toast/ToastContext";
-import { Place, RouteSearchResult } from "../../lib/types";
+import { PlaceSelection, RouteSearchResult } from "../../lib/types";
 
 const VEHICLE_ICONS: Record<string, string> = {
   Bus: "🚌",
@@ -29,8 +29,9 @@ export default function SearchPage() {
   const router = useRouter();
   const [mode, setMode] = useState<SearchMode>("number");
   const [regNumber, setRegNumber] = useState("");
-  const [fromPlace, setFromPlace] = useState<Place | { id: null; name: string } | null>(null);
-  const [toPlace, setToPlace] = useState<Place | { id: null; name: string } | null>(null);
+  const [fromPlace, setFromPlace] = useState<PlaceSelection | null>(null);
+  const [toPlace, setToPlace] = useState<PlaceSelection | null>(null);
+  const [resolvingRoute, setResolvingRoute] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [routeResults, setRouteResults] = useState<RouteSearchResult[] | null>(null);
@@ -59,13 +60,35 @@ export default function SearchPage() {
     }
   }
 
+  // A place picked from the Nominatim "Other places" suggestions has no
+  // Place-directory id yet (route search matches by id, not coordinates) —
+  // save it first so it gets a real one, the same find-or-create the backend
+  // already does for a freshly-registered vehicle's route.
+  async function resolvePlaceId(place: PlaceSelection): Promise<string | null> {
+    if (place.id) return place.id;
+    if (place.latitude == null || place.longitude == null) return null;
+    try {
+      const saved = await placeApi.resolve(place.name, place.latitude, place.longitude);
+      return saved.id;
+    } catch {
+      return null;
+    }
+  }
+
   async function handleSearchByRoute() {
-    if (!fromPlace?.id || !toPlace?.id) return;
+    if (!fromPlace || !toPlace) return;
     setLoading(true);
+    setResolvingRoute(true);
     setError(null);
     setRouteResults(null);
     try {
-      const results = await vehicleApi.searchByRoute(fromPlace.id, toPlace.id);
+      const [fromId, toId] = await Promise.all([resolvePlaceId(fromPlace), resolvePlaceId(toPlace)]);
+      setResolvingRoute(false);
+      if (!fromId || !toId) {
+        setError("Could not resolve one of the selected places. Please try selecting them again.");
+        return;
+      }
+      const results = await vehicleApi.searchByRoute(fromId, toId);
       setRouteResults(results);
       if (results.length === 0) {
         setError("No vehicles found on this route yet. Try different places, or check back later.");
@@ -74,11 +97,15 @@ export default function SearchPage() {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+      setResolvingRoute(false);
     }
   }
 
   const canSearchByNumber = !!regNumber.trim() && !loading;
-  const canSearchByRoute = !!fromPlace?.id && !!toPlace?.id && !loading;
+  const canSearchByRoute =
+    !!fromPlace && (!!fromPlace.id || fromPlace.latitude != null) &&
+    !!toPlace && (!!toPlace.id || toPlace.latitude != null) &&
+    !loading;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 pb-10 lg:pb-0">
@@ -159,7 +186,7 @@ export default function SearchPage() {
               <button
                 onClick={handleSearchByNumber}
                 disabled={!canSearchByNumber}
-                className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-accent text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:px-8"
+                className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-accent px-6 text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:w-[160px] lg:flex-shrink-0"
               >
                 {loading ? (
                   <>
@@ -204,12 +231,12 @@ export default function SearchPage() {
               <button
                 onClick={handleSearchByRoute}
                 disabled={!canSearchByRoute}
-                className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-accent text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:px-8"
+                className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-accent px-6 text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:w-[160px] lg:flex-shrink-0"
               >
                 {loading ? (
                   <>
                     <Spinner />
-                    <span className="ml-2">Searching…</span>
+                    <span className="ml-2">{resolvingRoute ? "Locating…" : "Searching…"}</span>
                   </>
                 ) : (
                   "Find vehicles"

@@ -13,11 +13,10 @@ import { useAuth } from "../../lib/auth/AuthContext";
 import { GOOGLE_MAPS_API_KEY } from "../../lib/mapsConfig";
 import { useForegroundLocation } from "../../lib/tracking/useForegroundLocation";
 import { useToast } from "../../lib/toast/ToastContext";
-import { Place, Vehicle, VehicleType } from "../../lib/types";
+import { PlaceSelection, Vehicle, VehicleType } from "../../lib/types";
 
 const VEHICLE_TYPES: VehicleType[] = ["Bus", "Auto", "Taxi", "Bike", "Truck", "Ambulance", "Other"];
 
-type PlaceSelection = Place | { id: null; name: string };
 let nextStopKey = 0;
 
 function vehicleEmoji(type: VehicleType): string {
@@ -40,7 +39,14 @@ function vehicleEmoji(type: VehicleType): string {
 }
 
 async function resolveCoordinates(place: PlaceSelection | null): Promise<{ latitude?: number; longitude?: number }> {
-  if (!place || place.id !== null || !place.name.trim()) return {};
+  if (!place) return {};
+  if (place.id !== null) return {}; // existing Place directory entry — coordinates resolved server-side already.
+  // A place picked from the Nominatim "Other places" suggestions already
+  // carries real coordinates — no need to geocode it again.
+  if (place.latitude != null && place.longitude != null) {
+    return { latitude: place.latitude, longitude: place.longitude };
+  }
+  if (!place.name.trim()) return {};
   try {
     const res = await fetch(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(place.name)}&key=${GOOGLE_MAPS_API_KEY}`
