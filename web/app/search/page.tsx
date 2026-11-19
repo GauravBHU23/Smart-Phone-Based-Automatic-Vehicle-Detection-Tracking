@@ -186,7 +186,7 @@ export default function SearchPage() {
               <button
                 onClick={handleSearchByNumber}
                 disabled={!canSearchByNumber}
-                className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-accent px-6 text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:w-[160px] lg:flex-shrink-0"
+                className="mx-auto flex min-h-[52px] w-full max-w-[200px] items-center justify-center rounded-[14px] bg-accent px-6 text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:w-[160px] lg:max-w-none lg:flex-shrink-0"
               >
                 {loading ? (
                   <>
@@ -231,7 +231,7 @@ export default function SearchPage() {
               <button
                 onClick={handleSearchByRoute}
                 disabled={!canSearchByRoute}
-                className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-accent px-6 text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:w-[160px] lg:flex-shrink-0"
+                className="mx-auto flex min-h-[52px] w-full max-w-[200px] items-center justify-center rounded-[14px] bg-accent px-6 text-base font-bold text-white transition hover:bg-accent-dark disabled:bg-slate-300 disabled:hover:bg-slate-300 lg:w-[160px] lg:max-w-none lg:flex-shrink-0"
               >
                 {loading ? (
                   <>
