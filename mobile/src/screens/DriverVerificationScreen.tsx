@@ -61,6 +61,13 @@ export default function DriverVerificationScreen() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  const hasDateOfBirth = Boolean(dateOfBirth);
+  const hasProfilePhoto = Boolean(profilePhoto || status?.profilePhotoUrl);
+  const hasDlPhoto = Boolean(dlPhoto || status?.dlPhotoUrl);
+  const hasAadhaarPhoto = Boolean(aadhaarPhoto || status?.aadhaarPhotoUrl);
+  const hasRcPhoto = Boolean(rcPhoto || status?.rcPhotoUrl);
+  const canSubmit = hasDateOfBirth && hasProfilePhoto && hasDlPhoto && hasAadhaarPhoto && hasRcPhoto;
+
   async function handleSubmit() {
     if (!token) return;
     setSubmitting(true);
@@ -160,7 +167,15 @@ export default function DriverVerificationScreen() {
             <PhotoPicker label="Aadhaar card" photo={aadhaarPhoto} existingUrl={status?.aadhaarPhotoUrl ?? null} onPick={async () => setAadhaarPhoto(await pickPhoto())} />
             <PhotoPicker label="Vehicle RC certificate" photo={rcPhoto} existingUrl={status?.rcPhotoUrl ?? null} onPick={async () => setRcPhoto(await pickPhoto())} />
 
-            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={submitting}>
+            {!canSubmit && (
+              <Text style={styles.helperText}>Fill in your date of birth and all 4 photos before submitting.</Text>
+            )}
+
+            <TouchableOpacity
+              style={[styles.submitButton, (submitting || !canSubmit) && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={submitting || !canSubmit}
+            >
               {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.submitButtonText}>Submit for review</Text>}
             </TouchableOpacity>
           </View>
@@ -222,6 +237,8 @@ const styles = StyleSheet.create({
   photoPreview: { width: "100%", height: 110, borderRadius: 10, marginBottom: 8, backgroundColor: "#f1f5f9" },
   photoButton: { backgroundColor: "#eff6ff", borderRadius: 10, paddingVertical: 10, alignItems: "center" },
   photoButtonText: { color: "#1d4ed8", fontWeight: "700", fontSize: 13 },
+  helperText: { fontSize: 12, color: "#64748b" },
   submitButton: { backgroundColor: "#2563eb", borderRadius: 10, paddingVertical: 14, alignItems: "center", marginTop: 4 },
+  submitButtonDisabled: { opacity: 0.6 },
   submitButtonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 });

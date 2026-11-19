@@ -42,6 +42,13 @@ export default function DriverVerificationPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  const hasDateOfBirth = Boolean(dateOfBirth);
+  const hasProfilePhoto = Boolean(profilePhoto || status?.profilePhotoUrl);
+  const hasDlPhoto = Boolean(dlPhoto || status?.dlPhotoUrl);
+  const hasAadhaarPhoto = Boolean(aadhaarPhoto || status?.aadhaarPhotoUrl);
+  const hasRcPhoto = Boolean(rcPhoto || status?.rcPhotoUrl);
+  const canSubmit = hasDateOfBirth && hasProfilePhoto && hasDlPhoto && hasAadhaarPhoto && hasRcPhoto;
+
   async function handleSubmit() {
     if (!token) return;
     setSubmitting(true);
@@ -145,9 +152,13 @@ export default function DriverVerificationPage() {
             <PhotoField label="Aadhaar card" value={aadhaarPhoto} existingUrl={status?.aadhaarPhotoUrl ?? null} onChange={setAadhaarPhoto} />
             <PhotoField label="Vehicle RC certificate" value={rcPhoto} existingUrl={status?.rcPhotoUrl ?? null} onChange={setRcPhoto} />
 
+            {!canSubmit && (
+              <p className="text-[12px] text-slate-500">Fill in your date of birth and all 4 photos before submitting.</p>
+            )}
+
             <button
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !canSubmit}
               className="mt-1 flex min-h-[46px] items-center justify-center rounded-[10px] bg-accent text-sm font-bold text-white transition hover:bg-accent-dark disabled:opacity-60"
             >
               {submitting ? <Spinner className="h-4 w-4 border-2 border-white border-t-transparent" /> : "Submit for review"}
