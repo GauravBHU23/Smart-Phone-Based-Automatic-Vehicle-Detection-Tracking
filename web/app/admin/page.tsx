@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import LogoutConfirmModal from "../../components/LogoutConfirmModal";
 import { adminApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
+import { useToast } from "../../lib/toast/ToastContext";
 import { AdminDriver, AdminStats, AdminVehicle } from "../../lib/types";
 
 type Tab = "overview" | "drivers" | "vehicles";
@@ -16,6 +17,7 @@ type ConfirmState =
 
 export default function AdminPage() {
   const { token, role, isLoading, signOut } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -72,8 +74,11 @@ export default function AdminPage() {
         else await adminApi.suspendVehicle(token, item.id);
       }
       await loadAll();
+      showToast(item.isSuspended ? `${kind === "driver" ? "Driver" : "Vehicle"} unsuspended` : `${kind === "driver" ? "Driver" : "Vehicle"} suspended`, "success");
     } catch (err) {
-      setError(String(err));
+      const message = String(err);
+      setError(message);
+      showToast(message, "error");
     } finally {
       setBusyId(null);
     }
@@ -236,6 +241,7 @@ export default function AdminPage() {
         onConfirm={() => {
           setLogoutConfirmOpen(false);
           signOut();
+          showToast("Logged out", "info");
           router.push("/login");
         }}
       />

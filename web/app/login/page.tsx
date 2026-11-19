@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "../../lib/api/client";
 import { authApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
+import { useToast } from "../../lib/toast/ToastContext";
 
 function roleHome(role: string | null) {
   if (role === "Driver") return "/driver";
@@ -16,6 +17,7 @@ function roleHome(role: string | null) {
 
 export default function LoginPage() {
   const { signIn, token, role, isLoading } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -36,9 +38,12 @@ export default function LoginPage() {
     try {
       const auth = await authApi.login(phone, password);
       signIn(auth);
+      showToast("Login successful!", "success");
       router.replace(roleHome(auth.role));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Login failed.");
+      const message = err instanceof ApiError ? err.message : "Login failed.";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }

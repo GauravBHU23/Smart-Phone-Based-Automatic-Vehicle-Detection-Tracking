@@ -8,6 +8,7 @@ import { vehicleApi } from "../../../lib/api/endpoints";
 import { useTrackingHub } from "../../../lib/api/useTrackingHub";
 import { useAuth } from "../../../lib/auth/AuthContext";
 import { GOOGLE_MAPS_API_KEY } from "../../../lib/mapsConfig";
+import { useToast } from "../../../lib/toast/ToastContext";
 import { VehicleType, VehicleWithLocation } from "../../../lib/types";
 
 const VEHICLE_TYPES: (VehicleType | "All")[] = ["All", "Bus", "Auto", "Taxi", "Bike", "Truck", "Ambulance", "Other"];
@@ -34,6 +35,7 @@ const DEFAULT_CENTER = { lat: 25.4358, lng: 81.8463 };
 
 export default function PassengerMapPage() {
   const { token, name, role, isLoading, signOut } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const [vehicles, setVehicles] = useState<Record<string, VehicleWithLocation>>({});
   const [filter, setFilter] = useState<VehicleType | "All">("All");
@@ -345,6 +347,7 @@ export default function PassengerMapPage() {
         onConfirm={() => {
           setLogoutConfirmOpen(false);
           signOut();
+          showToast("Logged out", "info");
           router.push("/login");
         }}
       />

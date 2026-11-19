@@ -8,6 +8,7 @@ import { vehicleApi } from "../../../lib/api/endpoints";
 import { useTrackingHub } from "../../../lib/api/useTrackingHub";
 import { useAuth } from "../../../lib/auth/AuthContext";
 import { GOOGLE_MAPS_API_KEY } from "../../../lib/mapsConfig";
+import { useToast } from "../../../lib/toast/ToastContext";
 import { RouteStop, VehicleStatus } from "../../../lib/types";
 
 const VEHICLE_ICONS: Record<string, string> = {
@@ -35,6 +36,7 @@ function timeAgo(iso: string | null): string {
 export default function VehicleStatusPage() {
   const { id: vehicleId } = useParams<{ id: string }>();
   const { token } = useAuth();
+  const { showToast } = useToast();
   const [status, setStatus] = useState<VehicleStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [watching, setWatching] = useState(false);
@@ -110,13 +112,17 @@ export default function VehicleStatusPage() {
       if (watching) {
         await vehicleApi.unwatch(token, vehicleId);
         setWatching(false);
+        showToast("Alerts turned off", "info");
       } else {
         await vehicleApi.watch(token, vehicleId);
         setWatching(true);
         setWatchMessage("You're set — we'll show this vehicle's status live while you're watching.");
+        showToast("You'll be notified about this vehicle!", "success");
       }
     } catch (err) {
-      setWatchMessage("Could not update alert. " + String(err));
+      const message = "Could not update alert. " + String(err);
+      setWatchMessage(message);
+      showToast(message, "error");
     } finally {
       setTogglingWatch(false);
     }

@@ -7,6 +7,7 @@ import PlaceAutocomplete from "../../components/PlaceAutocomplete";
 import { ApiError } from "../../lib/api/client";
 import { vehicleApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
+import { useToast } from "../../lib/toast/ToastContext";
 import { Place, RouteSearchResult } from "../../lib/types";
 
 const VEHICLE_ICONS: Record<string, string> = {
@@ -23,6 +24,7 @@ type SearchMode = "number" | "route";
 
 export default function SearchPage() {
   const { token, name, signOut } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const [mode, setMode] = useState<SearchMode>("number");
   const [regNumber, setRegNumber] = useState("");
@@ -84,6 +86,7 @@ export default function SearchPage() {
           <button
             onClick={() => {
               signOut();
+              showToast("Logged out", "info");
               router.push("/login");
             }}
             className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-2 text-[13px] font-semibold text-red-600 lg:bg-white/15 lg:text-white lg:hover:bg-white/25"

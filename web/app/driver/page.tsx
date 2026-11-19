@@ -9,6 +9,7 @@ import { vehicleApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { GOOGLE_MAPS_API_KEY } from "../../lib/mapsConfig";
 import { useForegroundLocation } from "../../lib/tracking/useForegroundLocation";
+import { useToast } from "../../lib/toast/ToastContext";
 import { Place, Vehicle, VehicleType } from "../../lib/types";
 
 const VEHICLE_TYPES: VehicleType[] = ["Bus", "Auto", "Taxi", "Bike", "Truck", "Ambulance", "Other"];
@@ -52,6 +53,7 @@ async function resolveCoordinates(place: PlaceSelection | null): Promise<{ latit
 
 export default function DriverPage() {
   const { token, name, role, isLoading, signOut } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,9 +159,14 @@ export default function DriverPage() {
         setNotice(
           "Vehicle added. We couldn't pinpoint your destination on the map, so arrival alerts won't trigger automatically for this trip. You can still track it live."
         );
+        showToast("Vehicle added", "success");
+      } else {
+        showToast("Vehicle added successfully!", "success");
       }
     } catch (err) {
-      setNotice(err instanceof ApiError ? err.message : String(err));
+      const message = err instanceof ApiError ? err.message : String(err);
+      setNotice(message);
+      showToast(message, "error");
     } finally {
       setAdding(false);
     }
@@ -180,6 +187,7 @@ export default function DriverPage() {
   function handleConfirmedSignOut() {
     setLogoutConfirmOpen(false);
     signOut();
+    showToast("Logged out", "info");
     router.push("/login");
   }
 
@@ -193,8 +201,11 @@ export default function DriverPage() {
       await vehicleApi.startTracking(token, vehicleId);
       setActiveVehicleId(vehicleId);
       setTracking(true);
+      showToast("Tracking started — you're live!", "success");
     } catch (err) {
-      setNotice(err instanceof ApiError ? err.message : String(err));
+      const message = err instanceof ApiError ? err.message : String(err);
+      setNotice(message);
+      showToast(message, "error");
       setTracking(false);
       setActiveVehicleId(null);
     }
@@ -204,8 +215,11 @@ export default function DriverPage() {
     if (!token || !activeVehicleId) return;
     try {
       await vehicleApi.stopTracking(token, activeVehicleId);
+      showToast("Tracking stopped", "info");
     } catch (err) {
-      setNotice(err instanceof ApiError ? err.message : String(err));
+      const message = err instanceof ApiError ? err.message : String(err);
+      setNotice(message);
+      showToast(message, "error");
     } finally {
       setTracking(false);
       setActiveVehicleId(null);

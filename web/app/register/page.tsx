@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "../../lib/api/client";
 import { authApi } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth/AuthContext";
+import { useToast } from "../../lib/toast/ToastContext";
 import { UserRole } from "../../lib/types";
 
 const ROLE_OPTIONS: { value: UserRole; label: string; icon: string }[] = [
@@ -22,6 +23,7 @@ function roleHome(role: string | null) {
 
 export default function RegisterPage() {
   const { signIn, token, role: authRole, isLoading } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -44,9 +46,12 @@ export default function RegisterPage() {
     try {
       const auth = await authApi.register(name, phone, password, role);
       signIn(auth);
+      showToast("Sign up successful!", "success");
       router.replace(roleHome(auth.role));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Registration failed.");
+      const message = err instanceof ApiError ? err.message : "Registration failed.";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }

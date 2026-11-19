@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import SiteHeader from "../components/SiteHeader";
 import { AuthProvider } from "../lib/auth/AuthContext";
+import { ToastProvider } from "../lib/toast/ToastContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,8 +19,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <AuthProvider>
-          <SiteHeader />
-          {children}
+          <ToastProvider>
+            <SiteHeader />
+            {children}
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
