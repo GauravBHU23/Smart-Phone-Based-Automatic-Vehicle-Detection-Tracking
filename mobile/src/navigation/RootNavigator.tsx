@@ -4,6 +4,7 @@ import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import IncomingBookingPopup from "../components/IncomingBookingPopup";
+import AdminLoginScreen from "../screens/AdminLoginScreen";
 import AdminScreen from "../screens/AdminScreen";
 import BookVehicleScreen from "../screens/BookVehicleScreen";
 import DriverProfileScreen from "../screens/DriverProfileScreen";
@@ -38,6 +39,7 @@ export default function RootNavigator() {
         {!token ? (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="PublicSearch" component={SearchScreen} />
             <Stack.Screen name="VehicleStatus" component={VehicleStatusScreen} />

@@ -81,17 +81,9 @@ export default function LoginPage() {
       <div className="lg:flex lg:w-1/2 lg:items-center lg:justify-center lg:px-10">
         <div className="mx-auto -mt-6 max-w-md rounded-[18px] bg-white p-5 shadow-lg lg:mt-0 lg:w-full lg:max-w-sm lg:p-8 lg:shadow-none">
           <h2 className="mb-5 hidden text-xl font-extrabold text-slate-800 lg:block">Welcome back</h2>
-          <div className="mt-3 flex items-center justify-between lg:mt-0">
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
-              Phone number
-            </label>
-            <button
-              onClick={() => setPhone("9999999000")}
-              className="mb-1.5 text-xs font-bold text-accent hover:underline"
-            >
-              Admin login
-            </button>
-          </div>
+          <label className="mb-1.5 mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:mt-0">
+            Phone number
+          </label>
           <input
             type="tel"
             placeholder="e.g. 9876543210"
@@ -148,6 +140,12 @@ export default function LoginPage() {
             <span className="flex-1 font-bold text-accent-dark">Track a vehicle</span>
             <span className="text-lg font-bold text-accent">→</span>
           </Link>
+
+          <p className="mt-6 text-center">
+            <Link href="/admin-login" className="text-xs font-semibold text-slate-400 hover:text-slate-600">
+              Admin login
+            </Link>
+          </p>
         </div>
       </div>
     </div>

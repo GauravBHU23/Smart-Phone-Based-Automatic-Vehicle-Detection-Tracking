@@ -59,12 +59,7 @@ export default function LoginScreen({ navigation }: any) {
           </LinearGradient>
 
           <View style={styles.formCard}>
-            <View style={styles.cardLabelRow}>
-              <Text style={styles.cardLabel}>Phone number</Text>
-              <TouchableOpacity onPress={() => setPhone("9999999000")}>
-                <Text style={styles.adminLoginLink}>Admin login</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.cardLabel}>Phone number</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g. 9876543210"
@@ -116,6 +111,10 @@ export default function LoginScreen({ navigation }: any) {
             </View>
             <Text style={styles.searchLinkArrow}>→</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate("AdminLogin")} activeOpacity={0.7}>
+            <Text style={styles.adminLoginLink}>Admin login</Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -148,7 +147,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
   },
-  cardLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12 },
   cardLabel: {
     fontSize: 12,
     fontWeight: "700",
@@ -156,8 +154,9 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 6,
+    marginTop: 12,
   },
-  adminLoginLink: { fontSize: 12, fontWeight: "700", color: "#2563eb" },
+  adminLoginLink: { fontSize: 12, fontWeight: "600", color: "#94a3b8", textAlign: "center", marginTop: 20 },
   input: {
     borderWidth: 1,
     borderColor: "#e2e8f0",
