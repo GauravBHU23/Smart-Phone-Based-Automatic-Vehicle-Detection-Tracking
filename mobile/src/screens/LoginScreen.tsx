@@ -59,7 +59,12 @@ export default function LoginScreen({ navigation }: any) {
           </LinearGradient>
 
           <View style={styles.formCard}>
-            <Text style={styles.cardLabel}>Phone number</Text>
+            <View style={styles.cardLabelRow}>
+              <Text style={styles.cardLabel}>Phone number</Text>
+              <TouchableOpacity onPress={() => setPhone("9999999000")}>
+                <Text style={styles.adminLoginLink}>Admin login</Text>
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={styles.input}
               placeholder="e.g. 9876543210"
@@ -143,6 +148,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
   },
+  cardLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12 },
   cardLabel: {
     fontSize: 12,
     fontWeight: "700",
@@ -150,8 +156,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 6,
-    marginTop: 12,
   },
+  adminLoginLink: { fontSize: 12, fontWeight: "700", color: "#2563eb" },
   input: {
     borderWidth: 1,
     borderColor: "#e2e8f0",
