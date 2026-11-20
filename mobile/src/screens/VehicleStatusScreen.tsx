@@ -283,7 +283,7 @@ export default function VehicleStatusScreen({ route, navigation }: any) {
 
         {mapRegion && (
           <View style={[styles.card, styles.mapCard]}>
-            <MapView style={styles.map} initialRegion={mapRegion} region={mapRegion}>
+            <MapView style={styles.map} initialRegion={mapRegion}>
               {routeCoordinates.length > 1 && (
                 <Polyline coordinates={routeCoordinates} strokeColor="#2563eb" strokeWidth={4} />
               )}

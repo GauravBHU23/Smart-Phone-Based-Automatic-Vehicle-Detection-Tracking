@@ -246,7 +246,7 @@ export default function WaitingForDriverScreen({ route, navigation }: any) {
       <SafeAreaView style={styles.container} edges={["top", "left", "right", "bottom"]}>
         {mapRegion && (
           <View style={styles.mapWrap}>
-            <MapView style={styles.map} initialRegion={mapRegion} region={mapRegion}>
+            <MapView style={styles.map} initialRegion={mapRegion}>
               {directionsRoute && directionsRoute.polyline.length > 1 && (
                 <Polyline
                   coordinates={directionsRoute.polyline.map((p: LatLng) => ({ latitude: p.lat, longitude: p.lng }))}

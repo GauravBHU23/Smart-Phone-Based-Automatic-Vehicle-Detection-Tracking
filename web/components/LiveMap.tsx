@@ -1,7 +1,7 @@
 "use client";
 
 import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE } from "../lib/mapStyles";
 
 export type MapTheme = "light" | "dark" | "standard" | "satellite" | "hybrid";
@@ -50,6 +50,13 @@ export default function LiveMap({
     [styles, mapTypeId]
   );
 
+  // Only the very first center is used to position the camera - a live
+  // position feed (driver moving every few seconds) must never keep
+  // force-recentering the map on top of someone who's trying to pan/zoom
+  // around it. Markers/the route line still update live via their own
+  // props below; only the camera's initial position is "sticky".
+  const initialCenterRef = useRef(center);
+
   if (!isLoaded) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm text-slate-500">
@@ -59,7 +66,7 @@ export default function LiveMap({
   }
 
   return (
-    <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={zoom} options={options}>
+    <GoogleMap mapContainerStyle={containerStyle} center={initialCenterRef.current} zoom={zoom} options={options}>
       {path && path.length > 1 && (
         <Polyline path={path} options={{ strokeColor: "#2563eb", strokeWeight: 4 }} />
       )}
