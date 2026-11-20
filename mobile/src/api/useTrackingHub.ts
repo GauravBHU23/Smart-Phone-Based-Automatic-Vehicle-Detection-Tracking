@@ -13,6 +13,7 @@ interface TrackingHubHandlers {
   onBookingRejected?: (booking: Booking) => void;
   onBookingCancelled?: (booking: Booking) => void;
   onBookingCompleted?: (booking: Booking) => void;
+  onBookingOtpVerified?: (booking: Booking) => void;
 }
 
 export function useTrackingHub(handlers: TrackingHubHandlers, watchVehicleIds: string[] = []) {
@@ -58,6 +59,7 @@ export function useTrackingHub(handlers: TrackingHubHandlers, watchVehicleIds: s
     connection.on("BookingRejected", (booking: Booking) => handlersRef.current.onBookingRejected?.(booking));
     connection.on("BookingCancelled", (booking: Booking) => handlersRef.current.onBookingCancelled?.(booking));
     connection.on("BookingCompleted", (booking: Booking) => handlersRef.current.onBookingCompleted?.(booking));
+    connection.on("BookingOtpVerified", (booking: Booking) => handlersRef.current.onBookingOtpVerified?.(booking));
 
     function joinGroups() {
       connection.invoke("JoinPassengers").catch((err) => console.warn("Failed to join passengers group:", err));

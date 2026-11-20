@@ -1,10 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, Easing, Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import MapView, { Marker, Polyline, Region } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { bookingApi } from "../api/endpoints";
+import { bookingApi, vehicleApi } from "../api/endpoints";
+import { useRoute } from "../api/useRoute";
 import { useTrackingHub } from "../api/useTrackingHub";
 import { useAuth } from "../context/AuthContext";
-import { Booking } from "../types";
+import { Booking, LatLng, VehicleStatus } from "../types";
+
+const VEHICLE_ICONS: Record<string, string> = {
+  Bus: "🚌",
+  Auto: "🛺",
+  Taxi: "🚕",
+  Bike: "🏍️",
+  Truck: "🚚",
+  Ambulance: "🚑",
+  Other: "🚗",
+};
 
 function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -40,6 +52,7 @@ export default function WaitingForDriverScreen({ route, navigation }: any) {
   const [loadingBooking, setLoadingBooking] = useState(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [cancelling, setCancelling] = useState(false);
+  const [vehicleStatus, setVehicleStatus] = useState<VehicleStatus | null>(null);
 
   async function loadBooking() {
     if (!token) return;
@@ -73,9 +86,25 @@ export default function WaitingForDriverScreen({ route, navigation }: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, bookingId]);
 
+  // Once accepted, the passenger needs the driver's live position for the
+  // route map — the booking itself never carries live coordinates, only the
+  // separate vehicle-status feed does (same pattern as VehicleStatusScreen).
+  useEffect(() => {
+    if (!booking || booking.status !== "Accepted") return;
+    vehicleApi
+      .getStatus(booking.vehicleId)
+      .then(setVehicleStatus)
+      .catch((err) => console.warn("Failed to load vehicle status:", err));
+  }, [booking?.vehicleId, booking?.status]);
+
   useTrackingHub(
     {
-      onLocationUpdate: () => {},
+      onLocationUpdate: (update) => {
+        if (!booking || update.vehicleId !== booking.vehicleId) return;
+        setVehicleStatus((prev) =>
+          prev ? { ...prev, latitude: update.latitude, longitude: update.longitude, isActive: true } : prev
+        );
+      },
       onBookingAccepted: (b) => {
         if (b.id === bookingId) setBooking(b);
       },
@@ -85,9 +114,34 @@ export default function WaitingForDriverScreen({ route, navigation }: any) {
       onBookingCancelled: (b) => {
         if (b.id === bookingId) setBooking(b);
       },
+      onBookingOtpVerified: (b) => {
+        if (b.id === bookingId) setBooking(b);
+      },
     },
     booking ? [booking.vehicleId] : []
   );
+
+  // Two legs, never a guessed one: before the ride starts, the route runs
+  // from wherever the driver actually is right now to the passenger's real
+  // pickup point; once the OTP is verified, it switches to pickup →
+  // destination. Either leg is simply omitted (no line, no distance/ETA) if
+  // its coordinates aren't known.
+  const rideStarted = booking ? booking.status === "Completed" || booking.otpVerified : false;
+  const driverPosition: LatLng | null =
+    !rideStarted && vehicleStatus?.latitude != null && vehicleStatus?.longitude != null
+      ? { lat: vehicleStatus.latitude, lng: vehicleStatus.longitude }
+      : null;
+  const pickupPoint: LatLng | null =
+    booking?.fromLatitude != null && booking?.fromLongitude != null
+      ? { lat: booking.fromLatitude, lng: booking.fromLongitude }
+      : null;
+  const destinationPoint: LatLng | null =
+    booking?.toLatitude != null && booking?.toLongitude != null
+      ? { lat: booking.toLatitude, lng: booking.toLongitude }
+      : null;
+  const routeOrigin = rideStarted ? pickupPoint : driverPosition;
+  const routeDestination = rideStarted ? destinationPoint : pickupPoint;
+  const { route: directionsRoute } = useRoute(token, routeOrigin, routeDestination);
 
   function handleCancel() {
     if (!token || !booking) return;
@@ -169,18 +223,79 @@ export default function WaitingForDriverScreen({ route, navigation }: any) {
   }
 
   if (booking.status === "Accepted" || booking.status === "Completed") {
-    const rideStarted = booking.status === "Completed" || booking.otpVerified;
+    const mapPoints = [driverPosition, pickupPoint, rideStarted ? destinationPoint : null].filter(
+      (p): p is LatLng => p !== null
+    );
+    const mapRegion: Region | null = (() => {
+      if (mapPoints.length === 0) return null;
+      const lats = mapPoints.map((p) => p.lat);
+      const lngs = mapPoints.map((p) => p.lng);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs);
+      const maxLng = Math.max(...lngs);
+      return {
+        latitude: (minLat + maxLat) / 2,
+        longitude: (minLng + maxLng) / 2,
+        latitudeDelta: Math.max(0.03, (maxLat - minLat) * 1.6),
+        longitudeDelta: Math.max(0.03, (maxLng - minLng) * 1.6),
+      };
+    })();
+
     return (
       <SafeAreaView style={styles.container} edges={["top", "left", "right", "bottom"]}>
-        <View style={styles.center}>
-          <View style={styles.successIconWrap}>
-            <Text style={styles.successIcon}>✅</Text>
+        {mapRegion && (
+          <View style={styles.mapWrap}>
+            <MapView style={styles.map} initialRegion={mapRegion} region={mapRegion}>
+              {directionsRoute && directionsRoute.polyline.length > 1 && (
+                <Polyline
+                  coordinates={directionsRoute.polyline.map((p: LatLng) => ({ latitude: p.lat, longitude: p.lng }))}
+                  strokeColor="#2563eb"
+                  strokeWidth={4}
+                />
+              )}
+              {driverPosition && (
+                <Marker coordinate={{ latitude: driverPosition.lat, longitude: driverPosition.lng }} title={booking.vehicleRegistrationNumber}>
+                  <View style={styles.vehicleMapMarker}>
+                    <Text style={styles.vehicleMapMarkerIcon}>{VEHICLE_ICONS[booking.vehicleType] ?? "🚗"}</Text>
+                  </View>
+                </Marker>
+              )}
+              {pickupPoint && (
+                <Marker coordinate={{ latitude: pickupPoint.lat, longitude: pickupPoint.lng }} title="Pickup" pinColor="#16a34a" />
+              )}
+              {rideStarted && destinationPoint && (
+                <Marker coordinate={{ latitude: destinationPoint.lat, longitude: destinationPoint.lng }} title="Destination" pinColor="#dc2626" />
+              )}
+            </MapView>
           </View>
-          <Text style={styles.title}>{rideStarted ? "Ride in progress" : "Driver confirmed!"}</Text>
-          <Text style={styles.subtitle}>
-            {booking.vehicleRegistrationNumber} is on the way.
-            {booking.driverPhone ? ` Call ${booking.driverPhone} to coordinate.` : ""}
-          </Text>
+        )}
+
+        <View style={styles.center}>
+          {directionsRoute && (
+            <View style={styles.routeInfoPill}>
+              <Text style={styles.routeInfoText}>
+                {directionsRoute.distanceKm} km · {directionsRoute.etaMinutes} min {rideStarted ? "to destination" : "away"}
+              </Text>
+            </View>
+          )}
+
+          <Text style={styles.title}>{rideStarted ? "Ride in progress" : "Driver on the way"}</Text>
+
+          <View style={styles.infoCard}>
+            <View style={styles.driverCardRow}>
+              <View>
+                <Text style={styles.infoReg}>{booking.vehicleRegistrationNumber}</Text>
+                <Text style={styles.infoRoute}>{booking.vehicleType}</Text>
+              </View>
+              {booking.driverPhone && (
+                <TouchableOpacity style={styles.callButton} onPress={() => Linking.openURL(`tel:${booking.driverPhone}`)}>
+                  <Text style={styles.callButtonText}>📞 Call</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
           {!rideStarted && booking.otpCode && (
             <View style={styles.otpCard}>
               <Text style={styles.otpLabel}>Share this code with your driver to start the ride</Text>
@@ -285,16 +400,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButtonText: { color: "#dc2626", fontWeight: "700", fontSize: 14 },
-  successIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#dcfce7",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  successIcon: { fontSize: 36 },
   errorIconWrap: {
     width: 80,
     height: 80,
@@ -323,4 +428,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryButtonText: { color: "#2563eb", fontWeight: "700", fontSize: 14 },
+  mapWrap: { width: "100%", height: 240 },
+  map: { width: "100%", height: "100%" },
+  vehicleMapMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#2563eb",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  vehicleMapMarkerIcon: { fontSize: 16 },
+  routeInfoPill: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginTop: -20,
+    marginBottom: 14,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  routeInfoText: { fontSize: 13, fontWeight: "700", color: "#334155" },
+  driverCardRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  callButton: { backgroundColor: "#eff6ff", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  callButtonText: { color: "#1d4ed8", fontWeight: "700", fontSize: 13 },
 });

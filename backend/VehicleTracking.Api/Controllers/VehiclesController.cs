@@ -389,6 +389,8 @@ public class VehiclesController : ControllerBase
         b.ToLocation,
         b.FromLatitude,
         b.FromLongitude,
+        b.ToLatitude,
+        b.ToLongitude,
         b.Note,
         includeOtp ? b.OtpCode : null,
         b.OtpVerifiedAt is not null,
@@ -423,6 +425,8 @@ public class VehiclesController : ControllerBase
             ToLocation = request.ToLocation,
             FromLatitude = request.FromLatitude,
             FromLongitude = request.FromLongitude,
+            ToLatitude = request.ToLatitude,
+            ToLongitude = request.ToLongitude,
             Note = request.Note
         };
 

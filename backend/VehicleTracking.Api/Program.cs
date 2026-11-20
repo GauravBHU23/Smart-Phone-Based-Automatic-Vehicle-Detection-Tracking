@@ -24,9 +24,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<PushNotificationService>();
 builder.Services.AddHttpClient<NominatimGeocodingService>();
 builder.Services.AddHttpClient<CloudinaryService>();
+builder.Services.AddHttpClient<DirectionsService>();
 
 builder.Services.AddCors(options =>
 {

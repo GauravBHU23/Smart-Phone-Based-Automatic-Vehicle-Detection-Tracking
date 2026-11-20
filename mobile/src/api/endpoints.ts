@@ -5,6 +5,8 @@ import {
   AdminVehicle,
   AuthResponse,
   Booking,
+  DirectionsResult,
+  LatLng,
   Place,
   PlaceSearchResponse,
   RouteSearchResult,
@@ -134,7 +136,15 @@ export const vehicleApi = {
   createBooking: (
     token: string,
     vehicleId: string,
-    options: { fromLocation?: string; toLocation?: string; fromLatitude?: number; fromLongitude?: number; note?: string } = {}
+    options: {
+      fromLocation?: string;
+      toLocation?: string;
+      fromLatitude?: number;
+      fromLongitude?: number;
+      toLatitude?: number;
+      toLongitude?: number;
+      note?: string;
+    } = {}
   ) =>
     api.post<Booking>(
       `/api/vehicles/${vehicleId}/bookings`,
@@ -143,6 +153,8 @@ export const vehicleApi = {
         toLocation: options.toLocation,
         fromLatitude: options.fromLatitude,
         fromLongitude: options.fromLongitude,
+        toLatitude: options.toLatitude,
+        toLongitude: options.toLongitude,
         note: options.note,
       },
       token
@@ -211,4 +223,12 @@ export const verificationApi = {
     appendPhoto("rcPhoto", data.rcPhoto);
     return api.postMultipart<VerificationStatusInfo>("/api/driver/verification/documents", formData, token);
   },
+};
+
+export const directionsApi = {
+  getRoute: (token: string, origin: LatLng, destination: LatLng) =>
+    api.get<DirectionsResult>(
+      `/api/directions?originLat=${origin.lat}&originLng=${origin.lng}&destLat=${destination.lat}&destLng=${destination.lng}`,
+      token
+    ),
 };

@@ -59,8 +59,14 @@ namespace VehicleTracking.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<double?>("ToLatitude")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("ToLocation")
                         .HasColumnType("text");
+
+                    b.Property<double?>("ToLongitude")
+                        .HasColumnType("double precision");
 
                     b.Property<Guid>("VehicleId")
                         .HasColumnType("uuid");

@@ -41,6 +41,8 @@ export default function BookVehicleScreen({ route, navigation }: any) {
         toLocation: toPlace?.name.trim() || undefined,
         fromLatitude: fromPlace?.latitude ?? undefined,
         fromLongitude: fromPlace?.longitude ?? undefined,
+        toLatitude: toPlace?.latitude ?? undefined,
+        toLongitude: toPlace?.longitude ?? undefined,
         note: note.trim() || undefined,
       });
       navigation.replace("WaitingForDriver", { bookingId: booking.id });

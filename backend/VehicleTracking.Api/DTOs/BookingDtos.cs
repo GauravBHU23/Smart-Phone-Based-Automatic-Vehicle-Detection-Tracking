@@ -2,7 +2,15 @@ using VehicleTracking.Api.Models;
 
 namespace VehicleTracking.Api.DTOs;
 
-public record CreateBookingRequest(string? FromLocation, string? ToLocation, double? FromLatitude, double? FromLongitude, string? Note);
+public record CreateBookingRequest(
+    string? FromLocation,
+    string? ToLocation,
+    double? FromLatitude,
+    double? FromLongitude,
+    double? ToLatitude,
+    double? ToLongitude,
+    string? Note
+);
 
 public record VerifyOtpRequest(string Otp);
 
@@ -20,6 +28,8 @@ public record BookingResponse(
     string? ToLocation,
     double? FromLatitude,
     double? FromLongitude,
+    double? ToLatitude,
+    double? ToLongitude,
     string? Note,
     string? OtpCode,
     bool OtpVerified,

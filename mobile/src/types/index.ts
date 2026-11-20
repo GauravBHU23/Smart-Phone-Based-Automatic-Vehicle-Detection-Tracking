@@ -186,9 +186,22 @@ export interface Booking {
   toLocation: string | null;
   fromLatitude: number | null;
   fromLongitude: number | null;
+  toLatitude: number | null;
+  toLongitude: number | null;
   note: string | null;
   otpCode: string | null;
   otpVerified: boolean;
   createdAt: string;
   respondedAt: string | null;
+}
+
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+export interface DirectionsResult {
+  polyline: LatLng[];
+  distanceKm: number;
+  etaMinutes: number;
 }

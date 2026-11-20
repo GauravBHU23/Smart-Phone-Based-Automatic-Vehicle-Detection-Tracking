@@ -25,6 +25,8 @@ public class Booking
     public string? ToLocation { get; set; }
     public double? FromLatitude { get; set; }
     public double? FromLongitude { get; set; }
+    public double? ToLatitude { get; set; }
+    public double? ToLongitude { get; set; }
     public string? Note { get; set; }
 
     public string? OtpCode { get; set; }

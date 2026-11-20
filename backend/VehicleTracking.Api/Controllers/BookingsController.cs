@@ -49,6 +49,8 @@ public class BookingsController : ControllerBase
         b.ToLocation,
         b.FromLatitude,
         b.FromLongitude,
+        b.ToLatitude,
+        b.ToLongitude,
         b.Note,
         includeOtp ? b.OtpCode : null,
         b.OtpVerifiedAt is not null,
