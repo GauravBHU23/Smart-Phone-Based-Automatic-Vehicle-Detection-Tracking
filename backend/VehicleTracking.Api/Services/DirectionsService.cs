@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Caching.Memory;
 using VehicleTracking.Api.DTOs;
@@ -6,7 +7,9 @@ namespace VehicleTracking.Api.Services;
 
 /// <summary>
 /// Fetches a real road route (not a straight line) between two points via
-/// Google's Directions API, server-side so neither client platform's
+/// Google's Routes API (the legacy Directions API isn't offered on newer
+/// Cloud projects - Routes API is Google's current replacement, same
+/// underlying routing engine), server-side so neither client platform's
 /// restricted Maps key has to handle a REST call it might not be allowed to
 /// make. Short-lived in-memory cache keyed on coordinates rounded to ~100m,
 /// since a driver's position moves gradually - re-billing Google on every
@@ -46,33 +49,41 @@ public class DirectionsService
 
         try
         {
-            var url = "https://maps.googleapis.com/maps/api/directions/json" +
-                       $"?origin={originLat},{originLng}&destination={destLat},{destLng}&key={_apiKey}";
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://routes.googleapis.com/directions/v2:computeRoutes");
+            request.Headers.Add("X-Goog-Api-Key", _apiKey);
+            // Routes API returns nothing unless you explicitly ask for it -
+            // this is the minimum set of fields this app actually uses.
+            request.Headers.Add("X-Goog-FieldMask", "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline");
+            request.Content = JsonContent.Create(new
+            {
+                origin = new { location = new { latLng = new { latitude = originLat, longitude = originLng } } },
+                destination = new { location = new { latLng = new { latitude = destLat, longitude = destLng } } },
+                travelMode = "DRIVE",
+            });
 
-            var response = await _httpClient.GetAsync(url, cancellationToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Directions request failed: {Status}", response.StatusCode);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning("Routes API request failed: {Status} {Body}", response.StatusCode, body);
                 return null;
             }
 
-            var result = await response.Content.ReadFromJsonAsync<GoogleDirectionsResult>(cancellationToken: cancellationToken);
+            var result = await response.Content.ReadFromJsonAsync<GoogleRoutesResult>(cancellationToken: cancellationToken);
             var route = result?.Routes?.FirstOrDefault();
-            var leg = route?.Legs?.FirstOrDefault();
-            if (route is null || leg is null)
+            if (route is null)
             {
-                if (result?.Status is not null && result.Status != "OK")
-                {
-                    _logger.LogWarning("Directions API returned status {Status}", result.Status);
-                }
                 return null;
             }
 
-            var polyline = DecodePolyline(route.OverviewPolyline?.Points ?? "");
+            var polyline = DecodePolyline(route.Polyline?.EncodedPolyline ?? "");
+            // Google returns duration as a string like "812s", not a number.
+            var durationSeconds = double.TryParse(route.Duration?.TrimEnd('s'), out var seconds) ? seconds : 0;
+
             var directionsResponse = new DirectionsResponse(
                 polyline,
-                Math.Round(leg.Distance.Value / 1000.0, 2),
-                (int)Math.Ceiling(leg.Duration.Value / 60.0)
+                Math.Round(route.DistanceMeters / 1000.0, 2),
+                (int)Math.Ceiling(durationSeconds / 60.0)
             );
 
             _cache.Set(cacheKey, directionsResponse, TimeSpan.FromSeconds(20));
@@ -122,42 +133,28 @@ public class DirectionsService
         return points;
     }
 
-    private class GoogleDirectionsResult
+    private class GoogleRoutesResult
     {
-        [JsonPropertyName("status")]
-        public string? Status { get; set; }
-
         [JsonPropertyName("routes")]
         public List<GoogleRoute>? Routes { get; set; }
     }
 
     private class GoogleRoute
     {
-        [JsonPropertyName("legs")]
-        public List<GoogleLeg>? Legs { get; set; }
+        [JsonPropertyName("distanceMeters")]
+        public double DistanceMeters { get; set; }
 
-        [JsonPropertyName("overview_polyline")]
-        public GoogleOverviewPolyline? OverviewPolyline { get; set; }
-    }
-
-    private class GoogleLeg
-    {
-        [JsonPropertyName("distance")]
-        public GoogleValueField Distance { get; set; } = new();
-
+        // e.g. "812s" - Routes API encodes durations as a string, not a number.
         [JsonPropertyName("duration")]
-        public GoogleValueField Duration { get; set; } = new();
+        public string? Duration { get; set; }
+
+        [JsonPropertyName("polyline")]
+        public GooglePolyline? Polyline { get; set; }
     }
 
-    private class GoogleValueField
+    private class GooglePolyline
     {
-        [JsonPropertyName("value")]
-        public double Value { get; set; }
-    }
-
-    private class GoogleOverviewPolyline
-    {
-        [JsonPropertyName("points")]
-        public string? Points { get; set; }
+        [JsonPropertyName("encodedPolyline")]
+        public string? EncodedPolyline { get; set; }
     }
 }
