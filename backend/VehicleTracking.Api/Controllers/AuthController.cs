@@ -16,12 +16,14 @@ public class AuthController : ControllerBase
     private readonly AppDbContext _db;
     private readonly TokenService _tokenService;
     private readonly CloudinaryService _cloudinary;
+    private readonly IConfiguration _config;
 
-    public AuthController(AppDbContext db, TokenService tokenService, CloudinaryService cloudinary)
+    public AuthController(AppDbContext db, TokenService tokenService, CloudinaryService cloudinary, IConfiguration config)
     {
         _db = db;
         _tokenService = tokenService;
         _cloudinary = cloudinary;
+        _config = config;
     }
 
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
@@ -127,5 +129,35 @@ public class AuthController : ControllerBase
 
         var token = _tokenService.CreateToken(user);
         return Ok(ToAuthResponse(user, token));
+    }
+
+    // One-time escape hatch: the admin account is seeded exactly once on
+    // first startup (see Program.cs) - changing AdminSeed:Password in Render
+    // afterwards has no effect on the row that already exists, since the
+    // seed check is "does this phone already exist", not "does its password
+    // match". This lets the admin force their account's password back to
+    // whatever AdminSeed:Password currently holds, without needing direct
+    // database access. Guarded by the JWT signing key - a secret already
+    // configured server-side and never exposed to any client - rather than
+    // a new secret to invent and manage.
+    [HttpPost("admin/reset-password")]
+    public async Task<IActionResult> ResetAdminPassword([FromHeader(Name = "X-Admin-Reset-Key")] string? resetKey)
+    {
+        var expectedKey = _config["Jwt:Key"];
+        if (string.IsNullOrEmpty(expectedKey) || resetKey != expectedKey)
+            return Unauthorized();
+
+        var adminPhone = _config["AdminSeed:Phone"];
+        var adminPassword = _config["AdminSeed:Password"];
+        if (string.IsNullOrWhiteSpace(adminPhone) || string.IsNullOrWhiteSpace(adminPassword))
+            return BadRequest("AdminSeed is not configured.");
+
+        var admin = await _db.Users.SingleOrDefaultAsync(u => u.Phone == adminPhone && u.Role == UserRole.Admin);
+        if (admin is null) return NotFound("No admin account exists for AdminSeed:Phone.");
+
+        admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
     }
 }
